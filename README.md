@@ -11,13 +11,18 @@ Hedef
 
 Klasorler
 - re/           : reverse engineering notlari, type recovery, call graph
+- runtime/      : oyun ici hook ve bridge katmani
+
 - signatures/   : exe fingerprint, pattern scan, offset tablolari
 - core/         : memory, PE, version detection, logging
-- runtime/      : oyun ici hook ve bridge katmani
+
 - sdk/          : mod yazarinin tuketecegi API
 - tools/        : dumper, verifier, generator araclari
 - examples/     : ornek modlar
 - docs/         : kararlar, ABI notlari, destek politikasi
+
+Game Files (Linux): 
+/home/erano/.local/share/Steam/steamapps/common/MountBlade Warband/
 
 Plan
 - ilk hedef tek Warband exe surumu ve singleplayer
@@ -35,3 +40,37 @@ Pratik karar
 - Linux tarafinda asenkron gelistirme devam eder
 - bu repo CMake ile MSVC odakli ama GCC/Clang ile tool gelistirmeye acik tutulur
 ```
+
+## Local iterasyon akisi
+
+Bu repo icinde hizli gelistirme dongusu icin `tools/dev-iteration.sh` scripti eklendi.
+
+Ornek kullanim:
+
+```bash
+./tools/dev-iteration.sh configure
+./tools/dev-iteration.sh build
+./tools/dev-iteration.sh sync --dry-run
+./tools/dev-iteration.sh launch
+```
+
+Tek komutta configure + build + sync:
+
+```bash
+./tools/dev-iteration.sh loop
+```
+
+Makineye ozel ayarlar icin environment variable kullan:
+
+```bash
+export WARBANDLIB_MOD_TARGET_DIR="$HOME/.local/share/Warband/Modules/MyModule"
+export WARBANDLIB_GAME_LAUNCH_CMD="steam -applaunch 48700"
+```
+
+VS Code tasklari:
+
+- `WarbandLib: Configure`
+- `WarbandLib: Build`
+- `WarbandLib: Sync Module`
+- `WarbandLib: Iteration Loop`
+- `WarbandLib: Launch Game`
