@@ -1,0 +1,44 @@
+# Build directories
+/build/
+/out/
+/dist/
+/cmake-build-*/
+
+# CMake files
+/CMakeFiles/
+/CMakeCache.txt
+/Testing/
+/Makefile
+/cmake_install.cmake
+/compile_commands.json
+
+# IDE files
+/.vs/
+/.vscode/
+/.idea/
+*.user
+*.suo
+
+# Compiler outputs
+*.obj
+*.o
+*.a
+*.lib
+*.so
+*.dll
+*.dll.a
+*.exp
+*.pdb
+*.ilk
+*.exe
+
+# Logs and temp files
+*.log
+*.tmp
+*.bak
+*.swp
+*.DS_Store
+
+# Script caches
+__pycache__/
+*.pyc
