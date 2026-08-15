@@ -1,51 +1,56 @@
 # WarbandLib
 
-Mount and Blade: Warband icin reverse engineering tabanli, acik kaynak bir modlama API ve runtime altyapisi.
+Mount & Blade: Warband için reverse engineering tabanlı, açık kaynak bir modding çekirdeği. Oyunun resmi bir modding API'si yok — WarbandLib bu boşluğu dolduran alt seviye katman: injection, hooking, struct/offset recovery.
 
-```text
-Hedef
-- KenshiLib ve REKenshi benzeri bir akis kurmak
-- once veri modeli ve binary davranisini cikarmak
-- sonra signature/offset katmani kurmak
-- en son stabil mod API acmak
+Bu repo yalnızca oyuna en yakın C++ katmanını kapsar. Üstüne kurulacak yüksek seviye API (WarbandAPI, ayrı repo, Java) için entegrasyon şekli henüz kararlaştırılmadı. WarbandLib bu karardan bağımsız, kendi başına derlenip test edilebilir şekilde geliştiriliyor.
 
-Klasorler
-- re/           : reverse engineering notlari, type recovery, call graph
-- runtime/      : oyun ici hook ve bridge katmani
+Emsal projeler: KenshiLib/RE_Kenshi, Warband Script Extender (WSE).
 
-- signatures/   : exe fingerprint, pattern scan, offset tablolari
-- core/         : memory, PE, version detection, logging
+## Hedef
+- Tek bir Warband exe sürümü, tek hedef: Windows build (Proton üzerinden Linux'ta çalıştırılıp test ediliyor).
+- İlk yüzey read-only — hook kurup gözlemlemek. Kontrollü event/hook sistemi bundan sonra gelir.
+- Çoklu sürüm desteği, veri modeli oturduktan sonra.
 
-- sdk/          : mod yazarinin tuketecegi API
-- tools/        : dumper, verifier, generator araclari
-- examples/     : ornek modlar
-- docs/         : kararlar, ABI notlari, destek politikasi
+## Yerel ortam (Arch Linux + Proton)
 
-Game Files (Linux): 
-/home/erano/.local/share/Steam/steamapps/common/MountBlade Warband/
+| Ne | Değer |
+|---|---|
+| Oyun kurulum dizini | `/home/{user}/.local/share/Steam/steamapps/common/MountBlade Warband/` |
+| Hedef exe | `.../MountBlade Warband/mb_warband.exe` |
+| Steam App ID | `48700` |
+| Proton prefix | `~/.local/share/Steam/steamapps/compatdata/48700/pfx` |
+| Compatibility tool | Proton Experimental — Steam > Warband > Özellikler > Uyumluluk'tan zorlanmalı |
+| Oyunu başlatma | `steam -applaunch 48700` |
+| Module klasörleri | `.../MountBlade Warband/Modules/<ModAdı>/` |
 
-Plan
-- ilk hedef tek Warband exe surumu ve singleplayer
-- ilk public yuzey read-only olacak
-- sonra kontrollu hook/event sistemi eklenecek
-- coklu surum destegi veri modeli oturduktan sonra gelecek
+Not: Bu oyunun resmi bir native Linux build'i de var (Steam Linux Runtime/scout ile gelir, varsayılan kurulum bu). Windows build'ini (`mb_warband.exe`) almak için compatibility tool Proton Experimental'a zorlanıp oyun yeniden indirilmeli — WarbandLib native Linux build'i değil, Windows build'i hedefliyor.
 
-Toolchain
-- runtime tarafi once Windows x86 ve MSVC 2010 uyumlu dusunuluyor
-- Linux tarafi analiz, generator ve tool gelistirme icin uygun
-- C++ ABI sorun cikarirsa ortak katman C ABI olacak
+## Toolchain
+- **Build**: `i686-w64-mingw32-gcc` (mingw-w64) ile Arch Linux'tan doğrudan cross-compile. Windows makine ya da VM gerekmiyor.
+- **Fallback**: `clang -target i686-pc-windows-msvc -fms-compatibility-version=16.00` (ince ABI uyuşmazlığı çıkarsa).
+- Gerçek MSVC 2010'a ihtiyaç yok: WarbandLib oyunun derlenmiş objeleriyle statik link etmiyor, struct/vtable erişimi RE ile çıkarılan offsetlerle elle yapılıyor — bu compiler-agnostic bir yaklaşım.
+- **Çalıştırma/test**: gerçek Windows exe, Proton Experimental ile aynı Linux makinede. Windows VM günlük döngüde gerekmiyor; sadece nadiren "gerçek Windows'ta da doğrula" sanity-check'i için opsiyonel yedek.
+- **RE araçları**: Ghidra (static analysis), x64dbg (Wine altında, dynamic debugging), frida (runtime tracing/prototipleme).
+- **Test framework**: gtest — oyun çalışmadan test edilebilen saf mantık için (AOB scanner, PE parser). Gerçek hook/offset doğrulaması sadece canlı oyuna karşı yapılabilir.
 
-Pratik karar
-- oyuna en yakin katman Windows tarafinda dogrulanir
-- Linux tarafinda asenkron gelistirme devam eder
-- bu repo CMake ile MSVC odakli ama GCC/Clang ile tool gelistirmeye acik tutulur
-```
+## Klasörler
+- `re/` — RE bulguları: struct/type recovery notları, call graph, Ghidra çıktıları.
+- `signatures/` — AOB pattern verisi + exe fingerprint → offset tablosu.
+- `core/` — memory read/write/protect, PE parsing, versiyon tespiti, AOB scan engine, logging.
+- `runtime/` — `DllMain`, hook motoru (trampoline/detour), somut hook'lar.
+- `sdk/` — Ham hook'ları event'e çeviren katman. Üst katman (dış API entegrasyonu) netleşmeden dokunulmuyor.
+- `tools/` — dumper, signature verifier, `dev-iteration.sh`.
+- `examples/` — ham hook örnekleri, WarbandLib'in kendi doğrulaması için.
+- `docs/` — ABI notları, kararlar, destek politikası.
 
-## Local iterasyon akisi
+## Şu anki milestone
+Injection → module base resolve → tek bilinen fonksiyona AOB scan → trampoline hook kur → tetiklenince log satırı yaz → temiz unhook.
 
-Bu repo icinde hizli gelistirme dongusu icin `tools/dev-iteration.sh` scripti eklendi.
+Açık karar: injection mekanizması henüz belirlenmedi (bağımsız injector mı yazılacak, mevcut bir loader'ın üstüne mi kurulacak).
 
-Ornek kullanim:
+## Local iterasyon akışı
+
+Hızlı geliştirme döngüsü için `tools/dev-iteration.sh`:
 
 ```bash
 ./tools/dev-iteration.sh configure
@@ -60,10 +65,10 @@ Tek komutta configure + build + sync:
 ./tools/dev-iteration.sh loop
 ```
 
-Makineye ozel ayarlar icin environment variable kullan:
+Ortam değişkenleri:
 
 ```bash
-export WARBANDLIB_MOD_TARGET_DIR="$HOME/.local/share/Warband/Modules/MyModule"
+export WARBANDLIB_MOD_TARGET_DIR="$HOME/.local/share/Steam/steamapps/common/MountBlade Warband/Modules/MyModule"
 export WARBANDLIB_GAME_LAUNCH_CMD="steam -applaunch 48700"
 ```
 

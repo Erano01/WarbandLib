@@ -1,5 +1,6 @@
 # Build directories
 /build/
+/build-*/
 /out/
 /dist/
 /cmake-build-*/
@@ -42,3 +43,6 @@
 # Script caches
 __pycache__/
 *.pyc
+
+# Local session context (not for publication)
+/CONTEXT.md
