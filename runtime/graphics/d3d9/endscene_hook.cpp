@@ -21,6 +21,7 @@ using EndSceneFn = long(__stdcall*)(void* device);
 EndSceneFn g_original_end_scene = nullptr;
 core::Logger* g_logger = nullptr;
 EndSceneHook::TickCallback g_tick_callback = nullptr;
+core::win32::SignatureData g_signature;
 
 long __stdcall EndSceneDetour(void* device) {
 	static std::uint64_t tick = 0;
@@ -37,7 +38,7 @@ long __stdcall EndSceneDetour(void* device) {
 	}
 
 	if (g_tick_callback != nullptr) {
-		g_tick_callback(device);
+		g_tick_callback(device, g_signature);
 	}
 
 	return g_original_end_scene(device);

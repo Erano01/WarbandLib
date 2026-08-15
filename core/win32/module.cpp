@@ -89,6 +89,8 @@ std::optional<SignatureData> LoadSignatureData(const std::string& ini_path,
 			data.app_device_offset = ParseHexOrDec(value);
 		} else if (key == "d3d9_device_vtbl_endscene_index") {
 			data.endscene_vtbl_index = static_cast<std::size_t>(ParseHexOrDec(value));
+		} else if (key == "d3d9_device_vtbl_reset_index") {
+			data.reset_vtbl_index = static_cast<std::size_t>(ParseHexOrDec(value));
 		}
 	}
 
