@@ -11,4 +11,4 @@ Image base at analysis time: `0x00400000` (non-ASLR)
 | `g_pMyD3DApplication` | `0x02DAB810` | global (`CMyD3DApplication` instance) |
 | `g_pMyD3DApplication + 0xC` | `0x02DAB81C` | field (`IDirect3DDevice9*`) |
 
-`IDirect3DDevice9` vtable: `EndScene` = index 42 (offset `0xA8`), `Present` = index 17 (offset `0x44`).
+`IDirect3DDevice9` vtable: `EndScene` = index 42 (offset `0xA8`), `Present` = index 17 (offset `0x44`), `Reset` = index 16 (offset `0x40`), `GetCreationParameters` = index 9 (offset `0x24`).

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/logging.h"
+#include "core/win32/module.h"
 
 namespace warbandlib::examples::overlay_quad {
 
@@ -17,6 +18,6 @@ void SetLogger(core::Logger* logger);
 // so the game's own next draw calls see exactly the state they left.
 // Also resets the viewport to the full backbuffer before drawing, so the
 // quad isn't clipped by whatever sub-region viewport the game last used.
-void Tick(void* device);
+void Tick(void* device, const core::win32::SignatureData& signature);
 
 } // namespace warbandlib::examples::overlay_quad

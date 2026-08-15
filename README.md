@@ -94,14 +94,26 @@ cmake --build build-win -j
 # deploy
 cp build-win/warbandlib_injector.exe build-win/*.dll build-win/mb_warband.ini "$GAME_DIR/"
 
-# inject (oyun açık olmalı)
+# oyunu başlat (pencere gelene kadar bekle, sonra devam et)
+steam -applaunch 48700
+```
+
+```bash
+# inject (oyun açık olmalı, her satır bağımsız bir DLL)
 cd "$GAME_DIR"
 "$WINE_DIR/wine" warbandlib_injector.exe mb_warband.exe warbandlib_runtime.dll
 "$WINE_DIR/wine" warbandlib_injector.exe mb_warband.exe warbandlib_example_overlay_quad.dll
+"$WINE_DIR/wine" warbandlib_injector.exe mb_warband.exe warbandlib_example_imgui_menu.dll
+```
 
-# değişiklik sonrası tekrar yüklemek için önce eject
-"$WINE_DIR/wine" warbandlib_injector.exe --eject mb_warband.exe warbandlib_example_overlay_quad.dll
-
-# log
+```bash
+# log (her satırı ayrı terminalde çalıştır, ikisi de foreground'da bloke eder)
 tail -f "$GAME_DIR/WarbandLib.log"
+tail -f "$GAME_DIR/WarbandLibExampleImguiMenu.log"
+```
+
+```bash
+# eject: test bitince ya da yeni build'i tekrar yüklemeden önce
+"$WINE_DIR/wine" warbandlib_injector.exe --eject mb_warband.exe warbandlib_example_overlay_quad.dll
+"$WINE_DIR/wine" warbandlib_injector.exe --eject mb_warband.exe warbandlib_example_imgui_menu.dll
 ```

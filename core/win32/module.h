@@ -18,6 +18,7 @@ struct SignatureData {
 	std::uintptr_t app_instance = 0;
 	std::uintptr_t app_device_offset = 0;
 	std::size_t endscene_vtbl_index = 0;
+	std::size_t reset_vtbl_index = 0;
 };
 
 // Parses an ini file with sections named after a lowercase hex SHA-256

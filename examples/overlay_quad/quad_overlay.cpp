@@ -95,7 +95,7 @@ void DrawIndicatorQuad(IDirect3DDevice9* device) {
 
 void SetLogger(core::Logger* logger) { g_logger = logger; }
 
-void Tick(void* device_ptr) {
+void Tick(void* device_ptr, const core::win32::SignatureData&) {
 	if (ConsumeToggleKeyPress()) {
 		g_visible = !g_visible;
 		if (g_logger != nullptr) {
