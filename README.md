@@ -82,7 +82,7 @@ VS Code tasklari:
 
 ## Build ve Inject Komutları
 
-
+Ortam + build + deploy (hangi örneği test edeceğin fark etmez, önce bunlar):
 
 ```bash
 export GAME_DIR="$HOME/.local/share/Steam/steamapps/common/MountBlade Warband"
@@ -91,33 +91,60 @@ export WINEPREFIX="$HOME/.local/share/Steam/steamapps/compatdata/48700/pfx"
 
 cd /home/erano/CppWorkspace/WarbandLib/
 
-# build
 cmake -S . -B build-win --toolchain cmake/toolchain-mingw-i686.cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build-win -j
-
-# deploy
 cp build-win/warbandlib_injector.exe build-win/*.dll build-win/mb_warband.ini "$GAME_DIR/"
 
 # oyunu başlat (pencere gelene kadar bekle, sonra devam et)
 steam -applaunch 48700
 ```
 
+**Uyarı — aynı anda tek DLL:** `imgui_menu` ve `hp_editor` ikisi de kendi ImGui context'ini ve WndProc hook'unu aynı oyun penceresine kuruyor; ikisini birden inject etmek instabilite/crash'e yol açıyor (doğrulanmadı ama şüpheli, bkz. `re/mb_warband.exe.md` Milestone 2). `warbandlib_runtime.dll` ve `overlay_quad` sadece EndScene'e vtable-hook kuruyor (ImGui/WndProc yok), bunlar birbirleriyle ve tek bir ImGui örneğiyle güvenle birlikte çalışabilir. Aşağıdaki blokları teker teker, ihtiyacına göre çalıştır.
+
+### warbandlib_runtime.dll — ana runtime, EndScene heartbeat log
 ```bash
-# inject (oyun açık olmalı, her satır bağımsız bir DLL)
 cd "$GAME_DIR"
 "$WINE_DIR/wine" warbandlib_injector.exe mb_warband.exe warbandlib_runtime.dll
+```
+```bash
+tail -f "$GAME_DIR/WarbandLib.log"
+```
+```bash
+"$WINE_DIR/wine" warbandlib_injector.exe --eject mb_warband.exe warbandlib_runtime.dll
+```
+
+### examples/overlay_quad — F9, ham D3D9 quad çizimi (ImGui yok)
+```bash
+cd "$GAME_DIR"
 "$WINE_DIR/wine" warbandlib_injector.exe mb_warband.exe warbandlib_example_overlay_quad.dll
+```
+```bash
+tail -f "$GAME_DIR/WarbandLibExampleOverlayQuad.log"
+```
+```bash
+"$WINE_DIR/wine" warbandlib_injector.exe --eject mb_warband.exe warbandlib_example_overlay_quad.dll
+```
+
+### examples/imgui_menu — F10, ImGui demo penceresi
+```bash
+cd "$GAME_DIR"
 "$WINE_DIR/wine" warbandlib_injector.exe mb_warband.exe warbandlib_example_imgui_menu.dll
 ```
-
 ```bash
-# log (her satırı ayrı terminalde çalıştır, ikisi de foreground'da bloke eder)
-tail -f "$GAME_DIR/WarbandLib.log"
 tail -f "$GAME_DIR/WarbandLibExampleImguiMenu.log"
 ```
-
 ```bash
-# eject: test bitince ya da yeni build'i tekrar yüklemeden önce
-"$WINE_DIR/wine" warbandlib_injector.exe --eject mb_warband.exe warbandlib_example_overlay_quad.dll
 "$WINE_DIR/wine" warbandlib_injector.exe --eject mb_warband.exe warbandlib_example_imgui_menu.dll
+```
+
+### examples/hp_editor — F10 aç/kapat, F11 tara, PgUp/PgDn ±1, Home/End ±10
+```bash
+cd "$GAME_DIR"
+"$WINE_DIR/wine" warbandlib_injector.exe mb_warband.exe warbandlib_example_hp_editor.dll
+```
+```bash
+tail -f "$GAME_DIR/WarbandLibExampleHpEditor.log"
+```
+```bash
+"$WINE_DIR/wine" warbandlib_injector.exe --eject mb_warband.exe warbandlib_example_hp_editor.dll
 ```

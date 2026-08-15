@@ -7,6 +7,7 @@ option(WARBANDLIB_BUILD_TOOLS "Build analysis and verification tools" ON)
 option(WARBANDLIB_BUILD_EXAMPLES "Build example mods and integration samples" ON)
 option(WARBANDLIB_BUILD_EXAMPLE_OVERLAY_QUAD "Build the overlay_quad example (safe, F9-toggleable EndScene draw demo)" ON)
 option(WARBANDLIB_BUILD_EXAMPLE_IMGUI_MENU "Build the imgui_menu example (F10-toggleable ImGui overlay demo)" ON)
+option(WARBANDLIB_BUILD_EXAMPLE_HP_EDITOR "Build the hp_editor example (F10-toggleable Agent::hit_points read/write test bed)" ON)
 option(WARBANDLIB_BUILD_TESTS "Build gtest-based unit tests (host-native only)" ON)
 option(WARBANDLIB_ENABLE_C_ABI "Enable the portable C ABI layer for cross-toolchain development" ON)
 option(WARBANDLIB_STRICT_WARNINGS "Enable strict warning levels" ON)
@@ -336,6 +337,38 @@ if(WARBANDLIB_BUILD_EXAMPLES)
 					"$<TARGET_FILE_DIR:warbandlib_example_imgui_menu>/mb_warband.ini"
 			)
 			add_dependencies(warbandlib_layout warbandlib_example_imgui_menu)
+		endif()
+
+		if(WARBANDLIB_BUILD_EXAMPLE_HP_EDITOR)
+			add_library(warbandlib_example_hp_editor SHARED
+				"${WARBANDLIB_EXAMPLES_DIR}/hp_editor/dllmain.cpp"
+				"${WARBANDLIB_EXAMPLES_DIR}/hp_editor/hp_editor.cpp"
+				"${WARBANDLIB_RUNTIME_DIR}/hooking/vtable_hook.cpp"
+				"${WARBANDLIB_RUNTIME_DIR}/graphics/d3d9/endscene_hook.cpp"
+				"${WARBANDLIB_RUNTIME_DIR}/graphics/d3d9/bootstrap.cpp"
+				"${WARBANDLIB_RUNTIME_DIR}/view/view_layer.cpp"
+				"${WARBANDLIB_RUNTIME_DIR}/view/d3d9/imgui_d3d9_backend.cpp"
+				"${WARBANDLIB_RUNTIME_DIR}/view/d3d9/window_query.cpp"
+				"${WARBANDLIB_RUNTIME_DIR}/view/d3d9/device_reset_hook.cpp"
+				"${WARBANDLIB_RUNTIME_DIR}/view/win32/imgui_win32_backend.cpp"
+				"${WARBANDLIB_RUNTIME_DIR}/view/win32/wndproc_hook.cpp"
+			)
+			target_link_libraries(warbandlib_example_hp_editor
+				PRIVATE
+					warbandlib_core
+					warbandlib_core_win32
+					warbandlib_imgui
+			)
+			set_target_properties(warbandlib_example_hp_editor PROPERTIES
+				PREFIX ""
+				OUTPUT_NAME "warbandlib_example_hp_editor"
+			)
+			add_custom_command(TARGET warbandlib_example_hp_editor POST_BUILD
+				COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+					"${WARBANDLIB_SIGNATURES_DIR}/mb_warband.ini"
+					"$<TARGET_FILE_DIR:warbandlib_example_hp_editor>/mb_warband.ini"
+			)
+			add_dependencies(warbandlib_layout warbandlib_example_hp_editor)
 		endif()
 	else()
 		add_custom_target(warbandlib_examples_stub
