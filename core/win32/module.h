@@ -1,10 +1,16 @@
 #pragma once
 
+#include <windows.h>
+
 #include <cstdint>
 #include <optional>
 #include <string>
 
 namespace warbandlib::core::win32 {
+
+// Directory containing module_handle's own file (e.g. the calling DLL's own
+// location), with a trailing separator. Returns an empty string on failure.
+std::string GetModuleDirectory(HMODULE module_handle);
 
 // Raw offset/index data loaded from a signatures/*.ini entry, keyed by the
 // target exe's SHA-256 fingerprint. See signatures/mb_warband.ini.

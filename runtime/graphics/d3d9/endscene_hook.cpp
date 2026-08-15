@@ -20,6 +20,7 @@ using EndSceneFn = long(__stdcall*)(void* device);
 // installs one EndScene hook per injected DLL.
 EndSceneFn g_original_end_scene = nullptr;
 core::Logger* g_logger = nullptr;
+EndSceneHook::TickCallback g_tick_callback = nullptr;
 
 long __stdcall EndSceneDetour(void* device) {
 	static std::uint64_t tick = 0;
@@ -35,12 +36,20 @@ long __stdcall EndSceneDetour(void* device) {
 		}
 	}
 
+	if (g_tick_callback != nullptr) {
+		g_tick_callback(device);
+	}
+
 	return g_original_end_scene(device);
 }
 
 } // namespace
 
-EndSceneHook::EndSceneHook(core::Logger* logger) : logger_(logger) { g_logger = logger_; }
+EndSceneHook::EndSceneHook(core::Logger* logger, TickCallback tick_callback)
+    : logger_(logger), tick_callback_(tick_callback) {
+	g_logger = logger_;
+	g_tick_callback = tick_callback_;
+}
 
 EndSceneHook::~EndSceneHook() { Uninstall(); }
 
@@ -83,4 +92,4 @@ void EndSceneHook::Uninstall() {
 	}
 }
 
-} // namespace warbandlib::runtime
+} // namespace warbandlib::runtime::graphics::d3d9

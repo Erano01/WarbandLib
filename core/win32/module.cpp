@@ -32,6 +32,17 @@ std::uintptr_t ParseHexOrDec(const std::string& value) {
 
 } // namespace
 
+std::string GetModuleDirectory(HMODULE module_handle) {
+	char path[MAX_PATH];
+	const DWORD len = GetModuleFileNameA(module_handle, path, MAX_PATH);
+	if (len == 0 || len == MAX_PATH) {
+		return {};
+	}
+	const std::string s(path, len);
+	const std::size_t slash = s.find_last_of("\\/");
+	return slash == std::string::npos ? std::string{} : s.substr(0, slash + 1);
+}
+
 std::optional<SignatureData> LoadSignatureData(const std::string& ini_path,
                                                 const std::string& exe_fingerprint_hex) {
 	std::ifstream in(ini_path);

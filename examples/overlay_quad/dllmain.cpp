@@ -1,3 +1,9 @@
+// Example: draws a small colored quad in the corner every frame via the
+// same EndScene hook the main runtime uses, toggled with F9. Deliberately a
+// separate, standalone DLL from warbandlib_runtime.dll -- to disable it,
+// simply don't inject it (or close the game to unload it); it never touches
+// warbandlib_runtime.dll's own state.
+
 #include <windows.h>
 
 #include <atomic>
@@ -5,6 +11,7 @@
 
 #include "core/logging.h"
 #include "core/win32/module.h"
+#include "examples/overlay_quad/quad_overlay.h"
 #include "runtime/graphics/d3d9/bootstrap.h"
 #include "runtime/graphics/d3d9/endscene_hook.h"
 
@@ -14,8 +21,8 @@ using warbandlib::core::Logger;
 using warbandlib::runtime::graphics::d3d9::BootstrapEndSceneHook;
 using warbandlib::runtime::graphics::d3d9::EndSceneHook;
 
-// Fingerprint of the exe this hook is written against. See
-// re/mb_warband.exe.md and signatures/mb_warband.ini.
+// Same target exe as the main runtime. See re/mb_warband.exe.md and
+// signatures/mb_warband.ini.
 constexpr const char* kExpectedFingerprint =
     "ff4a28c51bed49fe4bbb4bb96389f7611894f6d031bf68fff661efdc946dae13";
 
@@ -28,10 +35,11 @@ std::unique_ptr<EndSceneHook> g_hook;
 
 DWORD WINAPI WorkerThread(LPVOID) {
 	const std::string dir = warbandlib::core::win32::GetModuleDirectory(g_this_module);
-	g_logger = std::make_unique<Logger>(dir + "WarbandLib.log");
-	g_logger->Write("WarbandLib runtime attached, waiting for D3D device...");
+	g_logger = std::make_unique<Logger>(dir + "WarbandLibExampleOverlayQuad.log");
+	g_logger->Write("overlay_quad example attached, waiting for D3D device...");
 
-	g_hook = std::make_unique<EndSceneHook>(g_logger.get());
+	warbandlib::examples::overlay_quad::SetLogger(g_logger.get());
+	g_hook = std::make_unique<EndSceneHook>(g_logger.get(), &warbandlib::examples::overlay_quad::Tick);
 	BootstrapEndSceneHook(g_this_module, kExpectedFingerprint, *g_logger, *g_hook, g_shutdown);
 	return 0;
 }
@@ -53,7 +61,7 @@ BOOL APIENTRY DllMain(HMODULE module_handle, DWORD reason, LPVOID) {
 				CloseHandle(g_worker_thread);
 				g_worker_thread = nullptr;
 			}
-			g_hook.reset(); // uninstalls the vtable hook
+			g_hook.reset();
 			g_logger.reset();
 			break;
 
