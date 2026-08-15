@@ -22,6 +22,17 @@ public:
 	// runtime/view/d3d9/device_reset_hook.h.
 	void InvalidateDeviceObjects();
 	void CreateDeviceObjects();
+
+	// Reads the current backbuffer size (render target 0's description).
+	// Used by view_layer.cpp to correct ImGuiIO::DisplaySize against
+	// implausible values the Win32 backend can transiently report during
+	// an Alt-Tab minimize/restore or device-reset cycle -- ImGui clamps
+	// window positions to fit whatever DisplaySize it's given each frame,
+	// so a single bad frame there would yank user-moved windows toward a
+	// corner and leave them there. The D3D9 backbuffer size is stable
+	// through that transition. Returns false (leaves width/height
+	// untouched) on failure.
+	bool QueryBackbufferSize(void* device, float* out_width, float* out_height);
 };
 
 } // namespace warbandlib::runtime::view::d3d9

@@ -114,6 +114,22 @@ void ViewLayer::Tick(void* device, const core::win32::SignatureData& signature) 
 
 	g_d3d9_backend.NewFrame();
 	g_win32_backend.NewFrame();
+
+	// ImGui_ImplWin32_NewFrame() derives DisplaySize from the window's
+	// client rect, which can transiently report a smaller-than-real size
+	// during an Alt-Tab minimize/restore or device-reset cycle. ImGui
+	// clamps window positions to fit whatever DisplaySize it's given each
+	// frame (ClampWindowPos in imgui.cpp), so a single bad frame here would
+	// yank a user-moved window toward the corner and leave it there.
+	// Override with the real D3D9 backbuffer size, which is stable through
+	// that transition.
+	float backbuffer_width = 0.0f;
+	float backbuffer_height = 0.0f;
+	if (g_d3d9_backend.QueryBackbufferSize(device, &backbuffer_width, &backbuffer_height) &&
+	    backbuffer_width > 0.0f && backbuffer_height > 0.0f) {
+		ImGui::GetIO().DisplaySize = ImVec2(backbuffer_width, backbuffer_height);
+	}
+
 	ImGui::NewFrame();
 
 	if (g_menu_callback != nullptr) {
