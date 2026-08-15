@@ -79,3 +79,29 @@ VS Code tasklari:
 - `WarbandLib: Sync Module`
 - `WarbandLib: Iteration Loop`
 - `WarbandLib: Launch Game`
+
+## Build ve Inject Komutları
+
+```bash
+export GAME_DIR="$HOME/.local/share/Steam/steamapps/common/MountBlade Warband"
+export WINE_DIR="$HOME/.local/share/Steam/steamapps/common/Proton - Experimental/files/bin"
+export WINEPREFIX="$HOME/.local/share/Steam/steamapps/compatdata/48700/pfx"
+
+# build
+cmake -S . -B build-win --toolchain cmake/toolchain-mingw-i686.cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build-win -j
+
+# deploy
+cp build-win/warbandlib_injector.exe build-win/*.dll build-win/mb_warband.ini "$GAME_DIR/"
+
+# inject (oyun açık olmalı)
+cd "$GAME_DIR"
+"$WINE_DIR/wine" warbandlib_injector.exe mb_warband.exe warbandlib_runtime.dll
+"$WINE_DIR/wine" warbandlib_injector.exe mb_warband.exe warbandlib_example_overlay_quad.dll
+
+# değişiklik sonrası tekrar yüklemek için önce eject
+"$WINE_DIR/wine" warbandlib_injector.exe --eject mb_warband.exe warbandlib_example_overlay_quad.dll
+
+# log
+tail -f "$GAME_DIR/WarbandLib.log"
+```

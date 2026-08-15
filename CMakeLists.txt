@@ -5,6 +5,7 @@ project(WarbandLib VERSION 0.1.0 LANGUAGES C CXX)
 option(WARBANDLIB_BUILD_RUNTIME "Build Windows runtime and hook layer" ON)
 option(WARBANDLIB_BUILD_TOOLS "Build analysis and verification tools" ON)
 option(WARBANDLIB_BUILD_EXAMPLES "Build example mods and integration samples" ON)
+option(WARBANDLIB_BUILD_EXAMPLE_OVERLAY_QUAD "Build the overlay_quad example (safe, F9-toggleable EndScene draw demo)" ON)
 option(WARBANDLIB_BUILD_TESTS "Build gtest-based unit tests (host-native only)" ON)
 option(WARBANDLIB_ENABLE_C_ABI "Enable the portable C ABI layer for cross-toolchain development" ON)
 option(WARBANDLIB_STRICT_WARNINGS "Enable strict warning levels" ON)
@@ -169,6 +170,7 @@ if(WARBANDLIB_BUILD_RUNTIME)
 			"${WARBANDLIB_RUNTIME_DIR}/dllmain.cpp"
 			"${WARBANDLIB_RUNTIME_DIR}/hooking/vtable_hook.cpp"
 			"${WARBANDLIB_RUNTIME_DIR}/graphics/d3d9/endscene_hook.cpp"
+			"${WARBANDLIB_RUNTIME_DIR}/graphics/d3d9/bootstrap.cpp"
 		)
 		target_link_libraries(warbandlib_runtime
 			PRIVATE
@@ -220,11 +222,44 @@ if(WARBANDLIB_BUILD_TOOLS)
 	endif()
 endif()
 
+# ---------------------------------------------------------------------------
+# examples: small, standalone, easily-disabled demo DLLs. Each one reuses
+# EndSceneHook/BootstrapEndSceneHook rather than the game's own state, and
+# is independent of warbandlib_runtime.dll -- to disable one, don't inject
+# it (or drop its WARBANDLIB_BUILD_EXAMPLE_* option to skip building it).
+# ---------------------------------------------------------------------------
 if(WARBANDLIB_BUILD_EXAMPLES)
-	add_custom_target(warbandlib_examples_stub
-		COMMENT "Example mods and integration samples will live under examples/"
-	)
-	add_dependencies(warbandlib_layout warbandlib_examples_stub)
+	if(WARBANDLIB_TARGETING_WINDOWS)
+		if(WARBANDLIB_BUILD_EXAMPLE_OVERLAY_QUAD)
+			add_library(warbandlib_example_overlay_quad SHARED
+				"${WARBANDLIB_EXAMPLES_DIR}/overlay_quad/dllmain.cpp"
+				"${WARBANDLIB_EXAMPLES_DIR}/overlay_quad/quad_overlay.cpp"
+				"${WARBANDLIB_RUNTIME_DIR}/hooking/vtable_hook.cpp"
+				"${WARBANDLIB_RUNTIME_DIR}/graphics/d3d9/endscene_hook.cpp"
+				"${WARBANDLIB_RUNTIME_DIR}/graphics/d3d9/bootstrap.cpp"
+			)
+			target_link_libraries(warbandlib_example_overlay_quad
+				PRIVATE
+					warbandlib_core
+					warbandlib_core_win32
+			)
+			set_target_properties(warbandlib_example_overlay_quad PROPERTIES
+				PREFIX ""
+				OUTPUT_NAME "warbandlib_example_overlay_quad"
+			)
+			add_custom_command(TARGET warbandlib_example_overlay_quad POST_BUILD
+				COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+					"${WARBANDLIB_SIGNATURES_DIR}/mb_warband.ini"
+					"$<TARGET_FILE_DIR:warbandlib_example_overlay_quad>/mb_warband.ini"
+			)
+			add_dependencies(warbandlib_layout warbandlib_example_overlay_quad)
+		endif()
+	else()
+		add_custom_target(warbandlib_examples_stub
+			COMMENT "Examples need a Windows target: configure with --toolchain cmake/toolchain-mingw-i686.cmake"
+		)
+		add_dependencies(warbandlib_layout warbandlib_examples_stub)
+	endif()
 endif()
 
 # ---------------------------------------------------------------------------
