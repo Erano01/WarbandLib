@@ -22,4 +22,24 @@ void ImGuiD3D9Backend::InvalidateDeviceObjects() { ImGui_ImplDX9_InvalidateDevic
 
 void ImGuiD3D9Backend::CreateDeviceObjects() { ImGui_ImplDX9_CreateDeviceObjects(); }
 
+bool ImGuiD3D9Backend::QueryBackbufferSize(void* device_ptr, float* out_width, float* out_height) {
+	auto* device = static_cast<IDirect3DDevice9*>(device_ptr);
+
+	IDirect3DSurface9* render_target = nullptr;
+	if (FAILED(device->GetRenderTarget(0, &render_target)) || render_target == nullptr) {
+		return false;
+	}
+
+	D3DSURFACE_DESC desc{};
+	const bool ok = SUCCEEDED(render_target->GetDesc(&desc));
+	render_target->Release();
+	if (!ok) {
+		return false;
+	}
+
+	*out_width = static_cast<float>(desc.Width);
+	*out_height = static_cast<float>(desc.Height);
+	return true;
+}
+
 } // namespace warbandlib::runtime::view::d3d9

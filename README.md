@@ -82,10 +82,14 @@ VS Code tasklari:
 
 ## Build ve Inject Komutları
 
+
+
 ```bash
 export GAME_DIR="$HOME/.local/share/Steam/steamapps/common/MountBlade Warband"
 export WINE_DIR="$HOME/.local/share/Steam/steamapps/common/Proton - Experimental/files/bin"
 export WINEPREFIX="$HOME/.local/share/Steam/steamapps/compatdata/48700/pfx"
+
+cd /home/erano/CppWorkspace/WarbandLib/
 
 # build
 cmake -S . -B build-win --toolchain cmake/toolchain-mingw-i686.cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo
