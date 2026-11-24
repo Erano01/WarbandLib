@@ -38,17 +38,23 @@ export const cards = [
   { id: 'WBL-16', title: 'Thread model of the game measured', area: 'events', status: 'done' },
   { id: 'WBL-17', title: 'Game events page (findings and design)', area: 'docs', status: 'done' },
 
+  { id: 'WBL-37', title: 'Agent hit event', area: 'events', status: 'done' },
+  { id: 'WBL-38', title: 'Module trigger, script call, menu and dialog events', area: 'events', status: 'done' },
+  { id: 'WBL-39', title: 'Game data read per exe at runtime', area: 'data', status: 'done' },
+  { id: 'WBL-40', title: 'Game events example plugin (C)', area: 'docs', status: 'done' },
+
   // In progress
-  { id: 'WBL-18', title: 'Typed event API design (PRE/POST, payloads)', area: 'events', status: 'doing' },
+  { id: 'WBL-41', title: 'Live verification of game events', area: 'events', status: 'doing' },
+  { id: 'WBL-18', title: 'Typed event API design (PRE/POST, payloads)', area: 'events', status: 'done' },
 
   // To do
-  { id: 'WBL-19', title: 'Typed event API in the ABI', area: 'abi', status: 'todo' },
-  { id: 'WBL-20', title: 'Mission events: start, end, spawn, hit, killed', area: 'events', status: 'todo' },
+  { id: 'WBL-19', title: 'Typed event API in the ABI', area: 'abi', status: 'done' },
+  { id: 'WBL-20', title: 'Mission events: start, end, spawn, killed', area: 'events', status: 'todo' },
   { id: 'WBL-21', title: 'Gated events: weapon attack, missile, shield hit', area: 'events', status: 'todo' },
-  { id: 'WBL-22', title: 'Menu and dialog events', area: 'events', status: 'todo' },
-  { id: 'WBL-23', title: 'Campaign events: tick, encounter, simulated battle', area: 'events', status: 'todo' },
-  { id: 'WBL-24', title: 'Queued writes applied on the game thread', area: 'runtime', status: 'todo' },
-  { id: 'WBL-25', title: 'Fix hp_editor data race', area: 'overlay', status: 'todo' },
+  { id: 'WBL-22', title: 'Menu, option and dialog ids in block events', area: 'events', status: 'todo' },
+  { id: 'WBL-23', title: 'Typed campaign events: tick, encounter, simulated battle', area: 'events', status: 'todo' },
+  { id: 'WBL-24', title: 'Queued writes applied on the game thread', area: 'runtime', status: 'done' },
+  { id: 'WBL-25', title: 'Fix hp_editor data race', area: 'overlay', status: 'done' },
   { id: 'WBL-26', title: 'Render/game thread sync point research', area: 'events', status: 'todo' },
   { id: 'WBL-27', title: 'Symbol catalogue replacing raw addresses', area: 'data', status: 'todo' },
   { id: 'WBL-28', title: 'Remove addresses from examples, second purge', area: 'data', status: 'todo' },

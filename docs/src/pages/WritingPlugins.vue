@@ -53,6 +53,43 @@ static void __fastcall set_hp_detour(void* agent, void* edx, float* hp) {
 /* in load: */
 host->hooks->create(self, target, (void*)set_hp_detour, WBL_PRIORITY_NORMAL,
                     (void**)&original, NULL);`
+const gameEvents = `
+/* POST: after module code. The payload says what the game will use, and can change it. */
+static wbl_event_reply WBL_CALL on_hit(const wbl_event* e, void* user) {
+    wbl_agent_hit_event* hit = (wbl_agent_hit_event*)e->data;
+    if (hit->attacker_agent == my_champion)
+        hit->damage *= 2;
+    return WBL_EVENT_CONTINUE;
+}
+
+/* PRE: before module code. Cancelling skips the module's dialog condition; passed is the answer. */
+static wbl_event_reply WBL_CALL on_block(const wbl_event* e, void* user) {
+    wbl_block_event* b = (wbl_block_event*)e->data;
+    if (b->kind == WBL_BLOCK_DIALOG_CONDITION && lock_all_dialogs) {
+        b->passed = WBL_FALSE;
+        return WBL_EVENT_CANCEL;
+    }
+    return WBL_EVENT_CONTINUE;
+}
+
+/* in load (needs a host with abi_minor >= 1): */
+host->events->subscribe(self, WBL_POST(WBL_EVENT_AGENT_HIT), WBL_PRIORITY_NORMAL, on_hit, NULL, NULL);
+host->events->subscribe(self, WBL_PRE(WBL_EVENT_OPERATION_BLOCK), WBL_PRIORITY_NORMAL, on_block, NULL, NULL);`
+const gameThread = `
+typedef struct { int32_t agent; int32_t hp; } hp_change;
+
+static void WBL_CALL apply(void* user) {   /* game thread, between frames */
+    hp_change* c = (hp_change*)user;
+    /* ... change the agent here ... */
+    free(c);
+}
+
+/* in a WBL_EVENT_UI callback (render thread): */
+if (host->ui->button("Heal")) {
+    hp_change* c = malloc(sizeof *c);
+    c->agent = selected; c->hp = 100;
+    host->core->run_on_game_thread(self, apply, c);
+}`
 const iface = `
 /* provider */
 typedef struct net_api_v1 {
@@ -93,6 +130,17 @@ const net_api_v1* net = host->core->get_interface("coop.net.api", 1, NULL);`
     <p>The host writes the next link of the chain into <code>original_slot</code> whenever another plugin joins or leaves, so it must be a global or otherwise outlive the hook. Never cache its value.</p>
   </Callout>
   <p>Higher priority detours are called first and see the call before lower ones. Use <code>WBL_PRIORITY_HIGH</code> to observe or veto, <code>LOW</code> to act last before the game.</p>
+
+  <h2>Reacting to the game</h2>
+  <p>Game events come from the game's own dispatch (see <RouterLink to="/game-events">Game events</RouterLink>). Pick a phase when subscribing: <code>WBL_PRE(id)</code> runs before module code and may change the input or cancel it, <code>WBL_POST(id)</code> runs after and sees, and may change, what the game will use.</p>
+  <CodeBlock :code="gameEvents" lang="c" />
+  <Callout kind="note" title="Game thread only">
+    <p>Game event callbacks run on the game thread while the game waits: keep them short and never block. The payload pointer is only valid during the callback.</p>
+  </Callout>
+
+  <h2>Changing game state from a menu</h2>
+  <p>Menu and frame callbacks run while the game keeps simulating on another thread, so they must not change game objects directly. Queue the change instead; it runs on the game thread between frames.</p>
+  <CodeBlock :code="gameThread" lang="c" />
 
   <h2>Offering a service</h2>
   <CodeBlock :code="iface" lang="c" />

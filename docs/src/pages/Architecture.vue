@@ -26,6 +26,9 @@
   <h2>Runtime</h2>
   <p>On injection the runtime starts a worker thread, fingerprints <code>mb_warband.exe</code> (SHA-256), loads every DLL in <code>plugins/</code> in dependency order, then hooks <code>IDirect3DDevice9::Present</code> and <code>Reset</code> through the vtable of a throwaway device, which d3d9.dll shares with the game's own. Each presented frame raises <code>WBL_EVENT_FRAME</code>, <code>WBL_EVENT_DRAW</code> and, while the menu is open, <code>WBL_EVENT_UI</code>.</p>
 
+  <h2>Game events</h2>
+  <p>When game data for the running exe is present, the runtime also hooks the game's own dispatch points: the trigger managers, the engine's script-call wrappers and the function that runs dialog and menu blocks. Its detours are the outermost link of each chain. Each dispatch becomes a PRE event, the game's own code (module triggers, scripts, blocks), then a POST event, all on the game thread while the game waits. Payloads are copied at entry and written back explicitly, because the game keeps them in shared globals. See <RouterLink to="/game-events">Game events</RouterLink>.</p>
+
   <h2>Plugin loading</h2>
   <p>Each DLL must export <code>wbl_plugin_query</code> and <code>wbl_plugin_load</code>. The runtime reads the plugin info, refuses an ABI it cannot serve, an invalid or duplicate id, missing or too-old dependencies and cycles, and orders the rest so dependencies load first; ties keep file-name order. A plugin that fails is unloaded together with everything it registered, and plugins that require it fail too. Calls into plugin code are guarded, so a plugin that crashes in load is reported instead of taking the game down.</p>
 
@@ -40,14 +43,15 @@
     <thead><tr><th>Thread</th><th>Runs</th></tr></thead>
     <tbody>
       <tr><td>Runtime worker</td><td><code>wbl_plugin_load</code>, <code>wbl_plugin_unload</code>, <code>PLUGINS_LOADED</code>, <code>SHUTDOWN</code></td></tr>
-      <tr><td>Game render thread</td><td><code>FRAME</code>, <code>DRAW</code>, <code>UI</code>, device reset events</td></tr>
+      <tr><td>Game thread (simulation, window)</td><td>Game events, <code>run_on_game_thread</code> tasks (between frames, in the window message loop)</td></tr>
+      <tr><td>Whoever presents (mostly a render thread)</td><td><code>FRAME</code>, <code>DRAW</code>, <code>UI</code>, device reset events. Read-only toward game state.</td></tr>
       <tr><td>Whoever calls the hooked function</td><td>Your detours</td></tr>
       <tr><td>Whoever posts it</td><td>Custom events</td></tr>
     </tbody>
   </table>
 
   <h2>Shutdown</h2>
-  <p>On the <code>.unload</code> flag the runtime restores the D3D9 vtable and window procedure, waits for the render thread to leave, raises <code>SHUTDOWN</code>, calls each plugin's unload in reverse load order, removes whatever each still owns, waits again, frees the plugin DLLs and finally itself.</p>
+  <p>On the <code>.unload</code> flag the runtime restores the D3D9 vtable and window procedure, waits for the render thread to leave, stops raising game events and waits for any game event callback still running, raises <code>SHUTDOWN</code>, calls each plugin's unload in reverse load order, removes whatever each still owns, waits again, frees the plugin DLLs and finally itself.</p>
 </template>
 
 <style scoped>

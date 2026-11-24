@@ -29,6 +29,8 @@ export const tables = [
       ['const wbl_plugin_info* get_plugin_info(wbl_plugin plugin)', 'The host-owned copy of that plugin\'s info.'],
       ['wbl_result register_interface(wbl_plugin self, const char* name, uint32_t version, const void* table)', 'Offers a versioned function table to other plugins. One provider per name; the owner may re-register a newer version.'],
       ['const void* get_interface(const char* name, uint32_t min_version, uint32_t* out_version)', 'The table if its version is at least min_version, else NULL.'],
+      ['wbl_result run_on_game_thread(wbl_plugin self, wbl_task_fn fn, void* user)  · 1.1', 'Queues fn(user) to run once on the game thread, between frames, in queue order. The way to change game state from FRAME/DRAW/UI callbacks or your own threads. Pending tasks are dropped when the plugin unloads.'],
+      ['wbl_bool is_game_thread(void)  · 1.1', 'True on the thread that runs the simulation, module code and every game event.'],
     ],
   },
   {
@@ -36,7 +38,7 @@ export const tables = [
     name: 'wbl_events_api',
     summary: 'Priority-ordered event bus shared by the host and all plugins.',
     members: [
-      ['wbl_result subscribe(wbl_plugin self, wbl_event_id id, int32_t priority, wbl_event_callback cb, void* user, wbl_subscription* out)', 'Higher priority runs first; equal priorities run in subscription order. out may be NULL.'],
+      ['wbl_result subscribe(wbl_plugin self, wbl_event_id id, int32_t priority, wbl_event_callback cb, void* user, wbl_subscription* out)', 'Higher priority runs first; equal priorities run in subscription order. out may be NULL. Game events are subscribed per phase: WBL_PRE(id) or WBL_POST(id).'],
       ['wbl_result unsubscribe(wbl_subscription s)', 'Safe inside a callback; a removed callback is never called again.'],
       ['wbl_result register_event(wbl_plugin self, const char* name, wbl_event_flags flags, wbl_event_id* out_id)', 'Creates a custom event (id ≥ WBL_EVENT_FIRST_CUSTOM). The same name always gives the same id.'],
       ['wbl_result find_event(const char* name, wbl_event_id* out_id)', 'Looks up a custom event by name.'],
@@ -100,6 +102,53 @@ export const events = [
   ['WBL_EVENT_DEVICE_RESET_END', '5', 'wbl_device_event', 'After Reset, with its HRESULT.'],
   ['WBL_EVENT_PLUGINS_LOADED', '6', 'NULL', 'Worker thread, once every plugin\'s load has returned. Look up other plugins\' interfaces here.'],
   ['WBL_EVENT_SHUTDOWN', '7', 'NULL', 'Worker thread, before plugins are unloaded.'],
+]
+
+// ABI 1.1. Subscribe to WBL_PRE(id) or WBL_POST(id); the bare id is not an event.
+export const gameEvents = [
+  ['WBL_EVENT_MODULE_TRIGGER', '0x100', 'wbl_trigger_event', 'A trigger manager runs module triggers: mission template, campaign, game simple, or item/scene prop/presentation/map icon triggers. One event per dispatch.'],
+  ['WBL_EVENT_SCRIPT_CALL', '0x101', 'wbl_script_call_event', 'The engine calls one of its named game_* scripts (prices, wages, party speed, battle and trade notifications…), also when the module does not define it.'],
+  ['WBL_EVENT_OPERATION_BLOCK', '0x102', 'wbl_block_event', 'The engine runs a dialog line\'s condition or consequence, a game menu\'s opening block, a menu option\'s condition or consequence.'],
+  ['WBL_EVENT_AGENT_HIT', '0x110', 'wbl_agent_hit_event', 'An agent takes a hit in a mission. Wraps the matching MODULE_TRIGGER.'],
+]
+
+export const payloads = [
+  {
+    name: 'wbl_trigger_event',
+    members: [
+      ['wbl_trigger_source source', 'WBL_TRIGGER_SOURCE_MISSION, _CAMPAIGN, _GAME_SIMPLE or _OBJECT.'],
+      ['int32_t context', 'The ti_* value of an event trigger (negative), 0 for a timed pass.'],
+      ['int64_t params[8]', 'Trigger params 1..8 copied at entry. Writable in PRE (written back before module code). All 0 for a timed pass, whose globals hold leftovers.'],
+      ['int64_t result', 'Trigger result. Writable in PRE and POST; the engine reads it after the dispatch.'],
+    ],
+  },
+  {
+    name: 'wbl_script_call_event',
+    members: [
+      ['uint32_t script', 'The engine\'s script slot.'],
+      ['const char* name', 'The script name, e.g. "game_get_item_buy_price_factor".'],
+      ['wbl_bool defined', 'Whether the module defines the script. When it does not, nothing runs between PRE and POST.'],
+      ['uint32_t param_count / int32_t params[6]', 'The arguments. Writable in PRE.'],
+      ['int64_t result', 'Trigger result the engine reads back. Writable in PRE and POST. Cancelling PRE behaves like an undefined script and keeps this result.'],
+    ],
+  },
+  {
+    name: 'wbl_block_event',
+    members: [
+      ['wbl_block_kind kind', 'WBL_BLOCK_DIALOG_CONDITION, _DIALOG_CONSEQUENCE, _MENU_OPENED, _MENU_OPTION_CONDITION, _MENU_OPTION_CONSEQUENCE.'],
+      ['int32_t context', 'The interpreter context the engine passed.'],
+      ['wbl_bool passed', 'Whether the block\'s conditions passed. Writable in POST: false hides a dialog line or menu option. Cancelling PRE skips the block and returns this value (default false).'],
+    ],
+  },
+  {
+    name: 'wbl_agent_hit_event',
+    members: [
+      ['int32_t victim_agent / attacker_agent', 'Agent ids.'],
+      ['int32_t damage', 'PRE: the engine\'s damage. POST: the damage that will be applied, after module code. Writable in both.'],
+      ['int32_t hit_bone', 'The bone that was hit.'],
+      ['int32_t missile_item', 'Item kind of the missile, as the engine passes it.'],
+    ],
+  },
 ]
 
 export const results = [

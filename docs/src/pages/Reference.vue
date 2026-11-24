@@ -1,5 +1,5 @@
 <script setup>
-import { tables, events, results } from '../data/api.js'
+import { tables, events, gameEvents, payloads, results } from '../data/api.js'
 </script>
 
 <template>
@@ -9,6 +9,7 @@ import { tables, events, results } from '../data/api.js'
   <nav class="toc">
     <a v-for="t in tables" :key="t.id" :href="'#/reference#' + t.id">{{ t.name }}</a>
     <a href="#/reference#events">events</a>
+    <a href="#/reference#game-events">game events</a>
     <a href="#/reference#results">result codes</a>
   </nav>
 
@@ -35,6 +36,25 @@ import { tables, events, results } from '../data/api.js'
       </tbody>
     </table>
     <p>Callbacks return <code>WBL_EVENT_CONTINUE</code> or <code>WBL_EVENT_CANCEL</code>; cancelling only stops events registered with <code>WBL_EVENT_FLAG_CANCELLABLE</code>.</p>
+  </section>
+
+  <section id="game-events">
+    <h2>Game events <small>· ABI 1.1</small></h2>
+    <p>Raised from the game's own dispatch, on the game thread, synchronously, while the game waits. Each exists in two phases: subscribe to <code>WBL_PRE(id)</code> to run before module code (cancellable: <code>WBL_EVENT_CANCEL</code> skips module code and POST) or <code>WBL_POST(id)</code> to run after it. <code>event-&gt;data</code> points to the payload; documented fields are writable (cast away <code>const</code>). The payload lives only during the callback. Without game data for the running exe these events never fire.</p>
+    <table>
+      <thead><tr><th>Id</th><th>Value</th><th>data</th><th>When</th></tr></thead>
+      <tbody>
+        <tr v-for="e in gameEvents" :key="e[0]"><td><code>{{ e[0] }}</code></td><td>{{ e[1] }}</td><td><code>{{ e[2] }}</code></td><td>{{ e[3] }}</td></tr>
+      </tbody>
+    </table>
+    <template v-for="p in payloads" :key="p.name">
+      <h3><code>{{ p.name }}</code></h3>
+      <table>
+        <thead><tr><th>Member</th><th>Meaning</th></tr></thead>
+        <tbody><tr v-for="m in p.members" :key="m[0]"><td><code class="sig">{{ m[0] }}</code></td><td>{{ m[1] }}</td></tr></tbody>
+      </table>
+    </template>
+    <p>Every payload starts with <code>uint32_t struct_size</code> and only grows at the end.</p>
   </section>
 
   <section id="results">

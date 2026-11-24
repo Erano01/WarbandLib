@@ -28,7 +28,7 @@ watch(() => route.path, () => (menuOpen.value = false))
       <img :src="logo" alt="" width="24" height="24" />
       <span>WarbandLib</span>
     </RouterLink>
-    <span class="version">ABI 1.0 · runtime 0.1.0</span>
+    <span class="version">ABI 1.1 · runtime 0.2.0</span>
     <a class="repo" href="https://github.com/Erano01/WarbandLib" target="_blank" rel="noopener">GitHub</a>
   </header>
   <div class="layout">

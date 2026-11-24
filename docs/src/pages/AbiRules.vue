@@ -42,6 +42,15 @@ static const wbl_plugin_info info = {
   <CodeBlock :code="info" lang="c" title="declaring what the plugin needs" />
   <p>The host refuses a plugin whose <code>abi_major</code> differs from its own, or whose <code>abi_minor</code> is higher than its own.</p>
 
+  <h2>History</h2>
+  <table>
+    <thead><tr><th>ABI</th><th>Runtime</th><th>Added</th></tr></thead>
+    <tbody>
+      <tr><td>1.0</td><td>0.1.0</td><td>Plugins, events, hooks, memory, ui and draw tables.</td></tr>
+      <tr><td>1.1</td><td>0.2.0</td><td>Game events with PRE/POST phases and their payloads; <code>wbl_core_api.run_on_game_thread</code> and <code>is_game_thread</code>. 1.0 plugins run unchanged.</td></tr>
+    </tbody>
+  </table>
+
   <h2>Enforcement</h2>
   <p><code>sdk/abi_lock.c</code> is compiled into every Windows build and asserts the size and member offsets of every public type on x86. Moving a member or changing a size stops the build. When a minor version appends members, the lock is extended, never edited.</p>
   <Callout kind="note" title="Explicit padding">

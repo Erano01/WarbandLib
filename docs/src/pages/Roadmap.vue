@@ -13,13 +13,19 @@
     <li>Same build from Linux (clang-cl + xwin) and Windows (Visual Studio)</li>
   </ul>
 
+  <h2>Done (runtime 0.2, ABI 1.1)</h2>
+  <ul>
+    <li>Game events from the game's own dispatch with PRE/POST phases: module triggers, engine script calls, dialog and menu blocks, agent hit (<RouterLink to="/game-events">details</RouterLink>)</li>
+    <li>Game-thread task queue for changing game state from menus and other threads</li>
+    <li>Game data (symbols) read per exe at runtime, never compiled into WarbandLib</li>
+  </ul>
+
   <h2>Next</h2>
   <ul>
     <li>Symbol catalogue and local generation, replacing raw addresses (<RouterLink to="/game-data">design</RouterLink>)</li>
     <li>Loader without an injector, starting with the game</li>
     <li>Typed game objects: agents, missions, parties, items, exposed as stable handles</li>
-    <li>Typed game events on the game's own dispatch: mission start/end, agent hit, party encounter, menu and dialog (<RouterLink to="/game-events">research and design</RouterLink>)</li>
-    <li>Thread-safe writes from UI: queued and applied on the game thread</li>
+    <li>More typed game events: mission start/end, spawn, killed, party encounter, gated combat events, menu and dialog ids (<RouterLink to="/game-events">status</RouterLink>)</li>
     <li>Content registry: namespaced item, troop and party-template ids merged at load time, so content from several plugins can live in one game</li>
     <li>Module-system bridge: new script operations registered by plugins</li>
   </ul>
