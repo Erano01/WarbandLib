@@ -18,7 +18,8 @@
     <li>Symbol catalogue and local generation, replacing raw addresses (<RouterLink to="/game-data">design</RouterLink>)</li>
     <li>Loader without an injector, starting with the game</li>
     <li>Typed game objects: agents, missions, parties, items, exposed as stable handles</li>
-    <li>Gameplay events: mission start/end, agent hit, party encounter, menu and dialog</li>
+    <li>Typed game events on the game's own dispatch: mission start/end, agent hit, party encounter, menu and dialog (<RouterLink to="/game-events">research and design</RouterLink>)</li>
+    <li>Thread-safe writes from UI: queued and applied on the game thread</li>
     <li>Content registry: namespaced item, troop and party-template ids merged at load time, so content from several plugins can live in one game</li>
     <li>Module-system bridge: new script operations registered by plugins</li>
   </ul>
