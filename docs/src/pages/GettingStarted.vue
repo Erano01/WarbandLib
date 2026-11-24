@@ -70,6 +70,7 @@ injector.exe --eject mb_warband.exe warbandlib_runtime.dll`
 
   <h2>Run it</h2>
   <CodeBlock :code="inject" lang="bash" />
+  <p>Start the game first, then inject; the main menu and the campaign map are both fine. On Linux, <code>protonhax</code> (AUR) must wrap the game once: Steam launch options <code>protonhax init %COMMAND%</code>. <code>hot-reload.sh</code> injects a fresh copy from <code>bin/live/&lt;HHMMSS&gt;/</code>, so a DLL the game still holds never blocks a rebuild, and that folder also holds the copy's log.</p>
   <p>Press <strong>INSERT</strong> in game for the WarbandLib menu: it lists every plugin, its version and why it failed if it did. Everything the runtime does is in <code>warbandlib_runtime.dll.log</code>.</p>
   <Callout kind="warn" title="Unloading">
     <p>Always unload through <code>tools/unload.sh</code> or <code>injector --eject</code>. Both ask the runtime to shut down by itself (the <code>.unload</code> flag file), which is the only point where plugins can be unloaded safely.</p>

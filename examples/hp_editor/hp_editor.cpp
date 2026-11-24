@@ -16,6 +16,7 @@ constexpr std::uintptr_t kAgentVftableVa = 0x007C4A4C;
 constexpr std::uintptr_t kAgentSetHitPointsVa = 0x0049EE40;
 constexpr std::uintptr_t kHitPointsIntOffset = 0x6004;
 constexpr SIZE_T kMaxRegionBytes = 128u * 1024u * 1024u;
+constexpr SIZE_T kChunkBytes = 64u * 1024u;
 
 struct HelloApiV1 {
 	std::uint32_t struct_size;
@@ -49,18 +50,23 @@ bool Readable(const MEMORY_BASIC_INFORMATION& m) {
 	       (m.Protect & (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY)) != 0;
 }
 
+// Reads in fixed chunks: one region-sized buffer could need 128 MB of contiguous heap, which a 32-bit
+// game deep in a battle may not have, and an uncaught bad_alloc here ends the game.
+std::uint32_t g_chunk[kChunkBytes / 4];
+
 DWORD WINAPI ScanThread(LPVOID) {
 	std::vector<std::uintptr_t> found;
-	std::vector<std::uint32_t> buffer;
+	found.reserve(1024);
 	std::uintptr_t address = 0;
 	MEMORY_BASIC_INFORMATION mbi{};
 	while (VirtualQuery(reinterpret_cast<LPCVOID>(address), &mbi, sizeof(mbi)) == sizeof(mbi)) {
 		const auto base = reinterpret_cast<std::uintptr_t>(mbi.BaseAddress);
 		if (Readable(mbi) && mbi.RegionSize <= kMaxRegionBytes) {
-			buffer.resize(mbi.RegionSize / 4);
-			if (g_host->memory->read(base, buffer.data(), static_cast<std::uint32_t>(buffer.size() * 4)) == WBL_OK) {
-				for (std::size_t i = 0; i < buffer.size(); ++i) {
-					if (buffer[i] == g_agent_vftable) found.push_back(base + i * 4);
+			for (SIZE_T offset = 0; offset < mbi.RegionSize; offset += kChunkBytes) {
+				const SIZE_T bytes = (mbi.RegionSize - offset < kChunkBytes) ? mbi.RegionSize - offset : kChunkBytes;
+				if (g_host->memory->read(base + offset, g_chunk, static_cast<std::uint32_t>(bytes)) != WBL_OK) break;
+				for (SIZE_T i = 0; i < bytes / 4; ++i) {
+					if (g_chunk[i] == g_agent_vftable && found.size() < 4096) found.push_back(base + offset + i * 4);
 				}
 			}
 		}

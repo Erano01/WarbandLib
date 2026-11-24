@@ -8,11 +8,26 @@ namespace warbandlib::runtime {
 
 namespace {
 
+// Touching a guard page (another thread's stack growth marker) clears its guard bit; put it back so that
+// thread can still grow its stack instead of overflowing later.
+int CopyFilter(EXCEPTION_POINTERS* info) {
+	const EXCEPTION_RECORD* record = info->ExceptionRecord;
+	if (record->ExceptionCode == STATUS_GUARD_PAGE_VIOLATION && record->NumberParameters >= 2) {
+		void* page = reinterpret_cast<void*>(record->ExceptionInformation[1]);
+		MEMORY_BASIC_INFORMATION mbi{};
+		DWORD old = 0;
+		if (VirtualQuery(page, &mbi, sizeof(mbi)) == sizeof(mbi)) {
+			VirtualProtect(page, 1, mbi.Protect | PAGE_GUARD, &old);
+		}
+	}
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+
 bool GuardedCopy(void* dst, const void* src, std::uint32_t size) {
 	__try {
 		std::memcpy(dst, src, size);
 		return true;
-	} __except (EXCEPTION_EXECUTE_HANDLER) {
+	} __except (CopyFilter(GetExceptionInformation())) {
 		return false;
 	}
 }
