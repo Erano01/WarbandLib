@@ -28,7 +28,8 @@ done
 
 COPY="$LIVE/$(date +%H%M%S)"
 mkdir -p "$COPY/plugins"
-cp "$BIN_DIR/warbandlib_runtime.dll" "$BIN_DIR/mb_warband.ini" "$COPY/"
+cp "$BIN_DIR/warbandlib_runtime.dll" "$COPY/"
+[[ -f "$BIN_DIR/mb_warband.ini" ]] && cp "$BIN_DIR/mb_warband.ini" "$COPY/"
 cp "$BIN_DIR"/plugins/*.dll "$COPY/plugins/" 2>/dev/null || true
 WIN_PATH="Z:${COPY//\//\\}\\warbandlib_runtime.dll"
 "${WINE[@]}" "$BIN_DIR/injector.exe" mb_warband.exe "$WIN_PATH" 2>&1 | grep -v fixme || true

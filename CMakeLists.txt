@@ -11,6 +11,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(WARBANDLIB_BUILD_EXAMPLES "Build the example plugins" ON)
 option(WARBANDLIB_BUILD_TESTS "Build unit tests (only when not cross-compiling)" ON)
+set(WARBANDLIB_DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/internal" CACHE PATH "Private data (the internal/ submodule); the runtime builds without it")
+
+set(WARBANDLIB_HAS_DATA FALSE)
+if(EXISTS "${WARBANDLIB_DATA_DIR}/catalogue/mb_warband.ini")
+    set(WARBANDLIB_HAS_DATA TRUE)
+endif()
 
 set(WARBANDLIB_TARGETS_WINDOWS FALSE)
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -120,11 +126,13 @@ if(WARBANDLIB_TARGETS_WINDOWS)
         user32
     )
     set_target_properties(warbandlib_runtime PROPERTIES PREFIX "" OUTPUT_NAME "warbandlib_runtime")
-    add_custom_command(TARGET warbandlib_runtime POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_SOURCE_DIR}/signatures/mb_warband.ini
-            $<TARGET_FILE_DIR:warbandlib_runtime>/mb_warband.ini
-    )
+    if(WARBANDLIB_HAS_DATA)
+        add_custom_command(TARGET warbandlib_runtime POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${WARBANDLIB_DATA_DIR}/catalogue/mb_warband.ini
+                $<TARGET_FILE_DIR:warbandlib_runtime>/mb_warband.ini
+        )
+    endif()
 
     add_executable(warbandlib_injector tools/injector/main.cpp)
     target_link_libraries(warbandlib_injector PRIVATE warbandlib_options)
@@ -190,4 +198,4 @@ if(WARBANDLIB_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
 endif()
 
 message(STATUS "WarbandLib ${PROJECT_VERSION}: compiler ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}, "
-               "targets Windows: ${WARBANDLIB_TARGETS_WINDOWS}, cross-compiling: ${CMAKE_CROSSCOMPILING}")
+               "targets Windows: ${WARBANDLIB_TARGETS_WINDOWS}, cross-compiling: ${CMAKE_CROSSCOMPILING}, private data: ${WARBANDLIB_HAS_DATA}")
