@@ -9,6 +9,7 @@ import Examples from './pages/Examples.vue'
 import Roadmap from './pages/Roadmap.vue'
 import GameData from './pages/GameData.vue'
 import GameEvents from './pages/GameEvents.vue'
+import Board from './pages/Board.vue'
 import { privatePages } from 'virtual:private-pages'
 
 export const pages = [
@@ -22,6 +23,7 @@ export const pages = [
   { path: '/game-data', name: 'Game data model', component: GameData, group: 'Project' },
   { path: '/game-events', name: 'Game events', component: GameEvents, group: 'Project' },
   { path: '/roadmap', name: 'Roadmap', component: Roadmap, group: 'Project' },
+  { path: '/board', name: 'Board', component: Board, group: 'Project' },
   ...privatePages,
 ]
 
