@@ -49,3 +49,4 @@ __pycache__/
 # Docs site
 /docs/node_modules/
 /docs/dist/
+/docs/src/private/
