@@ -160,6 +160,10 @@ if(WARBANDLIB_TARGETS_WINDOWS)
         target_link_libraries(example_overlay_quad PRIVATE d3d9)
     endif()
 
+    if(WARBANDLIB_HAS_DATA AND EXISTS "${WARBANDLIB_DATA_DIR}/CMakeLists.txt")
+        add_subdirectory("${WARBANDLIB_DATA_DIR}" "${CMAKE_BINARY_DIR}/internal")
+    endif()
+
     # Injects the already built runtime and plugins into the running game (Proton via protonhax); builds nothing.
     add_custom_target(inject
         COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tools/hot-reload.sh $<TARGET_FILE_DIR:warbandlib_runtime>
