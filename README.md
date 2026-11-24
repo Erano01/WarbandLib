@@ -1,15 +1,15 @@
 # WarbandLib
 
-Mount & Blade: Warband için açık kaynak bir plugin runtime'ı ve kararlı C ABI. Amaç, farklı kişilerin farklı derleyicilerle yazdığı modların aynı oyunda yan yana çalışabildiği, Minecraft/Forge benzeri bir modding ekosistemi kurmak. İlk büyük hedef, bunun üzerine kurulacak bir kampanya co-op modu.
+An open-source plugin runtime and stable C ABI for Mount & Blade: Warband. The goal is a modding ecosystem in the spirit of Minecraft/Forge, where mods written by different people with different compilers run side by side in the same game. The first large target built on top of it is a campaign co-op mod.
 
-- Tek bir C header (`sdk/include/warbandlib/warbandlib.h`), sürümlü ve geriye uyumlu
-- Bağımlılık sırasıyla yüklenen plugin'ler, öncelikli event'ler ve paylaşımlı hook zincirleri
-- Plugin'ler arası servisler (interface'ler) ve oyun içi menü/çizim API'si
-- Linux'tan da Windows'tan da aynı şekilde derlenir
+- A single C header (`sdk/include/warbandlib/warbandlib.h`), versioned and backward compatible
+- Plugins loaded in dependency order, prioritized events and shared hook chains
+- Services between plugins (interfaces) and an in-game menu/drawing API
+- Builds the same way from Linux and Windows
 
-## Kurulum
+## Setup
 
-Gereken: CMake ≥ 3.21. Linux'ta ayrıca clang-cl, lld, Ninja ve [xwin](https://github.com/Jake-Shadle/xwin) (`~/toolchains/xwin-x86`); Windows'ta Visual Studio 2022.
+Requires CMake ≥ 3.21. On Linux also clang-cl, lld, Ninja and [xwin](https://github.com/Jake-Shadle/xwin) (`~/toolchains/xwin-x86`); on Windows, Visual Studio 2022.
 
 ```bash
 # Linux
@@ -21,11 +21,11 @@ cmake --preset windows-msvc-x86
 cmake --build --preset windows-msvc-x86-release
 ```
 
-Çıktı `build/<preset>/bin/` altında: `warbandlib_runtime.dll`, `injector.exe` ve `plugins/`.
+Output goes to `build/<preset>/bin/`: `warbandlib_runtime.dll`, `injector.exe` and `plugins/`.
 
-## Dokümantasyon
+## Documentation
 
-Kurulum ayrıntıları, mimari, plugin yazma ve API referansı dokümantasyon sitesinde:
+Setup details, architecture, writing plugins and the API reference are on the documentation site:
 
 ```bash
 cd docs
@@ -33,6 +33,6 @@ npm install
 npm run dev
 ```
 
-## Lisans
+## License
 
 [LICENSE](LICENSE)
