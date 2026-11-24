@@ -8,6 +8,16 @@ EventBus::EventBus() {
 	for (wbl_event_id id = WBL_EVENT_FRAME; id <= WBL_EVENT_SHUTDOWN; ++id) {
 		flags_[id] = 0;
 	}
+	for (const wbl_event_id base : kGameEvents) {
+		flags_[WBL_PRE(base)] = WBL_EVENT_FLAG_CANCELLABLE;
+		flags_[WBL_POST(base)] = 0;
+	}
+}
+
+bool EventBus::HasSubscribers(wbl_event_id id) const {
+	std::lock_guard<std::mutex> lock(mutex_);
+	const auto it = subscribers_.find(id);
+	return it != subscribers_.end() && !it->second.empty();
 }
 
 wbl_subscription EventBus::Subscribe(const void* owner, wbl_event_id id, std::int32_t priority,

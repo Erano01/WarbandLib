@@ -1,4 +1,5 @@
 #include "runtime/platform/overlay.h"
+#include "runtime/platform/game_events.h"
 
 #include <d3d9.h>
 
@@ -63,7 +64,16 @@ void CacheBackBuffer(IDirect3DDevice9* device) {
 	device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &g_back_buffer);
 }
 
+UINT TaskMessage() {
+	static const UINT id = RegisterWindowMessageA("WarbandLib.GameThreadTasks");
+	return id;
+}
+
 LRESULT CALLBACK WndProcDetour(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+	if (msg == TaskMessage() && msg != 0) {
+		game_events::RunGameThreadTasks(); // the window thread is the game thread: between frames here
+		return 0;
+	}
 	if (g_menu_visible && g_imgui_ready) {
 		ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
 		const ImGuiIO& io = ImGui::GetIO();
@@ -97,6 +107,7 @@ void EnsureImGui(IDirect3DDevice9* device) {
 	g_imgui_ready = true;
 	Logf(WBL_LOG_INFO, "overlay", "ImGui ready, hwnd=0x%08X, toggle with INSERT",
 	     static_cast<unsigned>(reinterpret_cast<std::uintptr_t>(g_hwnd)));
+	WakeGameThread(); // tasks queued before the window was known
 }
 
 bool DeviceReady() {
@@ -331,6 +342,16 @@ const wbl_ui_api kUiApi = {
 const wbl_draw_api kDrawApi = {sizeof(wbl_draw_api), DrawLine, DrawRect, DrawRectFilled, DrawCircle, DrawTextAt};
 
 } // namespace
+
+bool WakeGameThread() {
+	const HWND hwnd = g_hwnd;
+	return hwnd != nullptr && g_original_wndproc != nullptr && PostMessageA(hwnd, TaskMessage(), 0, 0) != FALSE;
+}
+
+DWORD GameWindowThread() {
+	const HWND hwnd = g_hwnd;
+	return hwnd != nullptr ? GetWindowThreadProcessId(hwnd, nullptr) : 0;
+}
 
 bool Install(HMODULE self) {
 	WNDCLASSEXA wc{};

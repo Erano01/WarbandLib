@@ -6,6 +6,7 @@
 #include <string>
 
 #include "core/aob_scanner.h"
+#include "runtime/platform/game_events.h"
 #include "runtime/platform/memory_access.h"
 #include "runtime/platform/overlay.h"
 #include "runtime/platform/runtime_state.h"
@@ -87,6 +88,13 @@ const void* WBL_CALL CoreGetInterface(const char* name, std::uint32_t min_versio
 	return State().interfaces.Get(name, min_version, out_version);
 }
 
+wbl_result WBL_CALL CoreRunOnGameThread(wbl_plugin self, wbl_task_fn fn, void* user_data) {
+	if (self == nullptr || fn == nullptr) return WBL_ERR_INVALID_ARGUMENT;
+	return game_events::QueueGameThreadTask(self, fn, user_data);
+}
+
+wbl_bool WBL_CALL CoreIsGameThread() { return game_events::IsGameThread() ? WBL_TRUE : WBL_FALSE; }
+
 wbl_result WBL_CALL EventsSubscribe(wbl_plugin self, wbl_event_id id, std::int32_t priority, wbl_event_callback callback,
                                     void* user_data, wbl_subscription* out) {
 	if (self == nullptr || callback == nullptr) return WBL_ERR_INVALID_ARGUMENT;
@@ -158,6 +166,7 @@ wbl_result WBL_CALL MemoryFindPattern(const char* pattern, uintptr_t* out_addres
 const wbl_core_api kCore = {
     sizeof(wbl_core_api), CoreLog,           CoreRuntimeVersion,    CoreGetGameInfo,  CoreRebase,
     CoreGetDataDirectory, CoreFindPlugin,    CoreGetPluginInfo,     CoreRegisterInterface, CoreGetInterface,
+    CoreRunOnGameThread,  CoreIsGameThread,
 };
 const wbl_events_api kEvents = {sizeof(wbl_events_api), EventsSubscribe, EventsUnsubscribe, EventsRegister, EventsFind,
                                 EventsPost};
@@ -186,6 +195,7 @@ void ReleaseOwner(const void* owner) {
 	State().events.RemoveOwner(owner);
 	State().hooks.RemoveOwner(owner);
 	State().interfaces.RemoveOwner(owner);
+	game_events::RemoveOwnerTasks(owner);
 }
 
 const wbl_host_api* HostApi() {

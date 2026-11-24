@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "core/sha256.h"
-#include "core/win32/module.h"
+#include "runtime/platform/game_events.h"
 #include "runtime/platform/overlay.h"
 #include "runtime/platform/runtime_state.h"
 
@@ -36,8 +36,9 @@ void FillGameInfo(RuntimeState& s) {
 	const std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 	const std::string sha = warbandlib::core::Sha256Hex(bytes.data(), bytes.size());
 	std::snprintf(g.sha256, sizeof(g.sha256), "%s", sha.c_str());
-	g.fingerprint_known =
-	    warbandlib::core::win32::LoadSignatureData(s.runtime_dir + "mb_warband.ini", sha).has_value() ? WBL_TRUE : WBL_FALSE;
+	std::ifstream ini(s.runtime_dir + "mb_warband.ini");
+	if (ini.is_open()) s.symbols = warbandlib::host::SymbolTable::Parse(ini, sha);
+	g.fingerprint_known = s.symbols.has_value() ? WBL_TRUE : WBL_FALSE;
 	Logf(WBL_LOG_INFO, "runtime", "mb_warband.exe base=0x%08X size=0x%X sha256=%s (%s)", static_cast<unsigned>(g.image_base),
 	     g.image_size, g.sha256, g.fingerprint_known ? "known build" : "unknown build");
 }
@@ -54,6 +55,7 @@ void Shutdown(bool from_worker) {
 		return;
 	}
 	Sleep(300); // render thread leaves Present
+	game_events::Quiesce();
 	s.events.Post(WBL_EVENT_SHUTDOWN, nullptr);
 	s.plugins.UnloadAll();
 	s.hooks.Shutdown();
@@ -85,6 +87,7 @@ DWORD WINAPI Worker(LPVOID) {
 	if (!s.hooks.Initialize()) {
 		Log(WBL_LOG_ERROR, "runtime", "MinHook initialisation failed, plugin hooks unavailable");
 	}
+	game_events::Install(s.symbols ? &*s.symbols : nullptr);
 	CreateDirectoryA(s.plugin_dir.c_str(), nullptr);
 	s.plugins.LoadAll(s.plugin_dir, HostApi());
 	overlay::Install(g_self);

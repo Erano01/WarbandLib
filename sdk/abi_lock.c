@@ -24,8 +24,19 @@ WBL_LOCK_SIZE(wbl_frame_event, 32);
 WBL_LOCK_OFFSET(wbl_frame_event, frame_index, 24);
 WBL_LOCK_SIZE(wbl_device_event, 16);
 
-WBL_LOCK_SIZE(wbl_core_api, 40);
+WBL_LOCK_SIZE(wbl_trigger_event, 88);
+WBL_LOCK_OFFSET(wbl_trigger_event, params, 16);
+WBL_LOCK_OFFSET(wbl_trigger_event, result, 80);
+WBL_LOCK_SIZE(wbl_script_call_event, 56);
+WBL_LOCK_OFFSET(wbl_script_call_event, params, 20);
+WBL_LOCK_OFFSET(wbl_script_call_event, result, 48);
+WBL_LOCK_SIZE(wbl_block_event, 16);
+WBL_LOCK_SIZE(wbl_agent_hit_event, 24);
+
+WBL_LOCK_SIZE(wbl_core_api, 48);
 WBL_LOCK_OFFSET(wbl_core_api, get_interface, 36);
+WBL_LOCK_OFFSET(wbl_core_api, run_on_game_thread, 40);
+WBL_LOCK_OFFSET(wbl_core_api, is_game_thread, 44);
 WBL_LOCK_SIZE(wbl_events_api, 24);
 WBL_LOCK_SIZE(wbl_hooks_api, 12);
 WBL_LOCK_SIZE(wbl_memory_api, 20);

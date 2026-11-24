@@ -1,5 +1,5 @@
 // C++ plugin: finds live agents, shows and changes their hit points through the
-// game's own setter, and uses example.hello_c's interface when it is present.
+// game's own setter (on the game thread), and uses example.hello_c's interface when it is present.
 #include <windows.h>
 
 #include <atomic>
@@ -93,10 +93,27 @@ bool IsLiveAgent(std::uintptr_t agent) {
 	return g_host->memory->read(agent, &vftable, sizeof(vftable)) == WBL_OK && vftable == g_agent_vftable;
 }
 
+struct HpChange {
+	std::uintptr_t agent;
+	int hp;
+};
+
+// Runs on the game thread between frames: the agent cannot change under us here.
+void WBL_CALL ApplyHitPoints(void* user_data) {
+	const HpChange* change = static_cast<HpChange*>(user_data);
+	if (IsLiveAgent(change->agent)) {
+		float value = static_cast<float>(change->hp < 0 ? 0 : change->hp);
+		g_set_hit_points(reinterpret_cast<void*>(change->agent), nullptr, &value);
+	}
+	delete change;
+}
+
+wbl_plugin g_self = nullptr;
+
+// Called from the menu (render thread): game state is only changed on the game thread.
 void SetHitPoints(std::uintptr_t agent, int hp) {
-	if (!IsLiveAgent(agent)) return;
-	float value = static_cast<float>(hp < 0 ? 0 : hp);
-	g_set_hit_points(reinterpret_cast<void*>(agent), nullptr, &value);
+	auto* change = new HpChange{agent, hp};
+	if (g_host->core->run_on_game_thread(g_self, ApplyHitPoints, change) != WBL_OK) delete change;
 }
 
 wbl_event_reply WBL_CALL OnUi(const wbl_event*, void*) {
@@ -158,7 +175,7 @@ const wbl_dependency kDependencies[] = {
 
 WBL_PLUGIN_QUERY {
 	static const wbl_plugin_info info = {
-	    sizeof(wbl_plugin_info), WBL_ABI_VERSION_MAJOR, 0, "example.hp_editor", "HP editor", "1.0.0", "WarbandLib",
+	    sizeof(wbl_plugin_info), WBL_ABI_VERSION_MAJOR, 1, "example.hp_editor", "HP editor", "1.1.0", "WarbandLib",
 	    "Lists live agents and edits their hit points through Agent_SetHitPoints.", 1, kDependencies,
 	};
 	return &info;
@@ -166,6 +183,7 @@ WBL_PLUGIN_QUERY {
 
 WBL_PLUGIN_LOAD(host, self) {
 	g_host = host;
+	g_self = self;
 	g_agent_vftable = host->core->rebase(kAgentVftableVa);
 	g_set_hit_points = reinterpret_cast<SetHitPointsFn>(host->core->rebase(kAgentSetHitPointsVa));
 

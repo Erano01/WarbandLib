@@ -14,7 +14,7 @@
 #include <stdint.h>
 
 #define WBL_ABI_VERSION_MAJOR 1u
-#define WBL_ABI_VERSION_MINOR 0u
+#define WBL_ABI_VERSION_MINOR 1u
 
 #if defined(_WIN32)
 #define WBL_CALL __cdecl
@@ -103,6 +103,8 @@ typedef struct wbl_game_info {
 	char sha256[65];            /* lowercase hex of mb_warband.exe on disk */
 } wbl_game_info;
 
+typedef void(WBL_CALL* wbl_task_fn)(void* user_data);
+
 typedef struct wbl_core_api {
 	uint32_t struct_size;
 	void(WBL_CALL* log)(wbl_plugin self, wbl_log_level level, const char* message);
@@ -119,6 +121,12 @@ typedef struct wbl_core_api {
 	wbl_result(WBL_CALL* register_interface)(wbl_plugin self, const char* name, uint32_t version,
 	                                         const void* table);
 	const void*(WBL_CALL* get_interface)(const char* name, uint32_t min_version, uint32_t* out_version);
+	/* ABI 1.1 */
+	/* Queues fn to run on the game thread between frames (in its window message loop), the only
+	   safe place to change game state from render/ui callbacks. Runs once, in queue order. */
+	wbl_result(WBL_CALL* run_on_game_thread)(wbl_plugin self, wbl_task_fn fn, void* user_data);
+	/* True on the thread that runs the simulation, module code and every game event. */
+	wbl_bool(WBL_CALL* is_game_thread)(void);
 } wbl_core_api;
 
 /* ------------------------------------------------------------- events api */
@@ -139,6 +147,32 @@ typedef uint32_t wbl_event_id;
 #define WBL_EVENT_SHUTDOWN 7u
 /* Ids from register_event start here. */
 #define WBL_EVENT_FIRST_CUSTOM 0x10000u
+
+/*
+ * Game events (ABI 1.1). Raised from the game's own dispatch, on the game
+ * thread, synchronously, while the game waits. Subscribe to one phase:
+ * WBL_PRE(id) runs before module code and may change the payload or return
+ * WBL_EVENT_CANCEL to skip module code (POST is then not raised);
+ * WBL_POST(id) runs after module code and sees what the game will use.
+ * event->data points to the payload; fields documented as writable may be
+ * changed (cast away const). The payload is only valid during the callback.
+ * Without game data for the running exe these events never fire.
+ */
+#define WBL_PHASE_PRE 0x1000u
+#define WBL_PHASE_POST 0x2000u
+#define WBL_PRE(id) ((wbl_event_id)((id) | WBL_PHASE_PRE))
+#define WBL_POST(id) ((wbl_event_id)((id) | WBL_PHASE_POST))
+#define WBL_EVENT_PHASE(id) ((id) & (WBL_PHASE_PRE | WBL_PHASE_POST))
+#define WBL_EVENT_BASE(id) ((id) & ~(WBL_PHASE_PRE | WBL_PHASE_POST))
+
+/* data: wbl_trigger_event. Module triggers run by the game's trigger managers. */
+#define WBL_EVENT_MODULE_TRIGGER 0x100u
+/* data: wbl_script_call_event. The engine calling one of its named game_* scripts. */
+#define WBL_EVENT_SCRIPT_CALL 0x101u
+/* data: wbl_block_event. Dialog lines and game menus run by the engine. */
+#define WBL_EVENT_OPERATION_BLOCK 0x102u
+/* data: wbl_agent_hit_event. An agent takes a hit in a mission. */
+#define WBL_EVENT_AGENT_HIT 0x110u
 
 typedef uint32_t wbl_event_flags;
 #define WBL_EVENT_FLAG_CANCELLABLE 1u
@@ -170,6 +204,55 @@ typedef struct wbl_device_event {
 	void* present_parameters; /* D3DPRESENT_PARAMETERS* */
 	int32_t hresult;          /* RESET_END only */
 } wbl_device_event;
+
+typedef uint32_t wbl_trigger_source;
+#define WBL_TRIGGER_SOURCE_MISSION 1u     /* mission template triggers */
+#define WBL_TRIGGER_SOURCE_CAMPAIGN 2u    /* campaign triggers (triggers.txt) */
+#define WBL_TRIGGER_SOURCE_GAME_SIMPLE 3u /* game simple triggers (simple_triggers.txt) */
+#define WBL_TRIGGER_SOURCE_OBJECT 4u      /* item, scene prop, presentation and map icon triggers */
+
+typedef struct wbl_trigger_event {
+	uint32_t struct_size;
+	wbl_trigger_source source;
+	int32_t context;    /* ti_* value of an event trigger (< 0); 0 for a timed pass */
+	uint32_t reserved0;
+	int64_t params[8];  /* trigger params 1..8 at entry, writable in PRE; all 0 for a timed pass */
+	int64_t result;     /* trigger result, writable in PRE and POST */
+} wbl_trigger_event;
+
+typedef struct wbl_script_call_event {
+	uint32_t struct_size;
+	uint32_t script;      /* the engine's script slot */
+	const char* name;     /* "game_get_item_buy_price_factor", ... */
+	wbl_bool defined;     /* the module defines the script; when not, nothing runs */
+	uint32_t param_count;
+	int32_t params[6];    /* writable in PRE */
+	uint32_t reserved0;
+	int64_t result;       /* trigger result the engine reads back, writable in PRE and POST */
+} wbl_script_call_event;
+
+typedef uint32_t wbl_block_kind;
+#define WBL_BLOCK_DIALOG_CONDITION 1u
+#define WBL_BLOCK_DIALOG_CONSEQUENCE 2u
+#define WBL_BLOCK_MENU_OPENED 3u
+#define WBL_BLOCK_MENU_OPTION_CONDITION 4u
+#define WBL_BLOCK_MENU_OPTION_CONSEQUENCE 5u
+
+typedef struct wbl_block_event {
+	uint32_t struct_size;
+	wbl_block_kind kind;
+	int32_t context;  /* the interpreter context the engine passed */
+	wbl_bool passed;  /* conditions' outcome; POST: writable. PRE cancel returns it (default false). */
+} wbl_block_event;
+
+typedef struct wbl_agent_hit_event {
+	uint32_t struct_size;
+	int32_t victim_agent;
+	int32_t attacker_agent;
+	int32_t damage;       /* PRE: the engine's damage; POST: the damage applied. Writable in both. */
+	int32_t hit_bone;
+	int32_t missile_item; /* item kind of the missile, as the engine passes it */
+} wbl_agent_hit_event;
 
 typedef wbl_event_reply(WBL_CALL* wbl_event_callback)(const wbl_event* event, void* user_data);
 
@@ -277,7 +360,9 @@ typedef struct wbl_host_api {
  * A plugin is a DLL in plugins/ exporting these three functions. query must
  * not touch the host. load runs once on the runtime's worker thread with a
  * host table that lives until unload returns. Event callbacks run on the
- * thread that raised the event (the render thread for frame/ui events).
+ * thread that raised the event: game events on the game thread, frame/ui
+ * events on whatever thread presents (mostly a render thread). Game state
+ * may only be changed on the game thread (see run_on_game_thread).
  */
 typedef const wbl_plugin_info*(WBL_CALL* wbl_plugin_query_fn)(void);
 typedef wbl_result(WBL_CALL* wbl_plugin_load_fn)(const wbl_host_api* host, wbl_plugin self);

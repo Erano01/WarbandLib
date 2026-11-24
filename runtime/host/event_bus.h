@@ -12,6 +12,10 @@
 
 namespace warbandlib::host {
 
+// Base ids of the built-in game events; each exists as WBL_PRE(id) (cancellable) and WBL_POST(id).
+inline constexpr wbl_event_id kGameEvents[] = {WBL_EVENT_MODULE_TRIGGER, WBL_EVENT_SCRIPT_CALL,
+                                               WBL_EVENT_OPERATION_BLOCK, WBL_EVENT_AGENT_HIT};
+
 class EventBus {
 public:
 	EventBus();
@@ -29,6 +33,7 @@ public:
 	bool Post(wbl_event_id id, const void* data);
 
 	std::size_t SubscriberCount(wbl_event_id id) const;
+	bool HasSubscribers(wbl_event_id id) const;
 
 private:
 	struct Subscription {

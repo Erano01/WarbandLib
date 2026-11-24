@@ -66,6 +66,8 @@ add_library(warbandlib_core STATIC
     runtime/host/event_bus.cpp
     runtime/host/hook_chain.cpp
     runtime/host/interface_registry.cpp
+    runtime/host/symbol_table.cpp
+    runtime/host/task_queue.cpp
 )
 target_link_libraries(warbandlib_core PUBLIC warbandlib_options warbandlib_sdk)
 
@@ -111,6 +113,7 @@ if(WARBANDLIB_TARGETS_WINDOWS)
     add_library(warbandlib_runtime SHARED
         runtime/dllmain.cpp
         runtime/platform/host_api.cpp
+        runtime/platform/game_events.cpp
         runtime/platform/hook_manager.cpp
         runtime/platform/memory_access.cpp
         runtime/platform/overlay.cpp
@@ -127,11 +130,8 @@ if(WARBANDLIB_TARGETS_WINDOWS)
     )
     set_target_properties(warbandlib_runtime PROPERTIES PREFIX "" OUTPUT_NAME "warbandlib_runtime")
     if(WARBANDLIB_HAS_DATA)
-        add_custom_command(TARGET warbandlib_runtime POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${WARBANDLIB_DATA_DIR}/catalogue/mb_warband.ini
-                $<TARGET_FILE_DIR:warbandlib_runtime>/mb_warband.ini
-        )
+        # configure_file re-runs whenever the game data changes, not only when the runtime relinks.
+        configure_file(${WARBANDLIB_DATA_DIR}/catalogue/mb_warband.ini ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/mb_warband.ini COPYONLY)
     endif()
 
     add_executable(warbandlib_injector tools/injector/main.cpp)
@@ -157,6 +157,7 @@ if(WARBANDLIB_TARGETS_WINDOWS)
         warbandlib_add_plugin(example_hello_c examples/hello_c/hello.c)
         warbandlib_add_plugin(example_hp_editor examples/hp_editor/hp_editor.cpp)
         warbandlib_add_plugin(example_overlay_quad examples/overlay_quad/overlay_quad.cpp)
+        warbandlib_add_plugin(example_game_events examples/game_events/game_events.c)
         target_link_libraries(example_overlay_quad PRIVATE d3d9)
     endif()
 
@@ -195,6 +196,7 @@ if(WARBANDLIB_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
         tests/event_bus_tests.cpp
         tests/hook_chain_tests.cpp
         tests/interface_registry_tests.cpp
+        tests/game_event_tests.cpp
         tests/abi_tests.c
     )
     target_link_libraries(warbandlib_tests PRIVATE warbandlib_core GTest::gtest GTest::gtest_main)

@@ -13,6 +13,10 @@ void Uninstall();
 // Releases ImGui and D3D objects; call once the render thread has left the detours.
 void Shutdown();
 
+// Posts a message that makes the game's window thread run queued game-thread tasks.
+bool WakeGameThread();
+DWORD GameWindowThread();
+
 const wbl_ui_api* UiApi();
 const wbl_draw_api* DrawApi();
 
