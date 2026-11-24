@@ -1,0 +1,70 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+    "configurePresets": [
+        {
+            "name": "linux-base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "toolchainFile": "${sourceDir}/cmake/toolchain-clang-cl-i686.cmake",
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
+        },
+        {
+            "name": "build-release-clangcl-x86",
+            "inherits": "linux-base",
+            "displayName": "Linux -> Windows x86 Release (clang-cl + xwin)",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+        },
+        {
+            "name": "build-debug-clangcl-x86",
+            "inherits": "linux-base",
+            "displayName": "Linux -> Windows x86 Debug (clang-cl + xwin)",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+        },
+        {
+            "name": "linux-host-tests",
+            "displayName": "Linux native unit tests",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" },
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
+        },
+        {
+            "name": "windows-base",
+            "hidden": true,
+            "generator": "Visual Studio 17 2022",
+            "architecture": "Win32",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+        },
+        {
+            "name": "windows-msvc-x86",
+            "inherits": "windows-base",
+            "displayName": "Windows x86 (MSVC, Visual Studio 2022)"
+        },
+        {
+            "name": "windows-clangcl-x86",
+            "inherits": "windows-base",
+            "displayName": "Windows x86 (clang-cl, Visual Studio 2022 ClangCL toolset)",
+            "toolset": "ClangCL"
+        }
+    ],
+    "buildPresets": [
+        { "name": "build-release-clangcl-x86", "configurePreset": "build-release-clangcl-x86" },
+        { "name": "build-debug-clangcl-x86", "configurePreset": "build-debug-clangcl-x86" },
+        { "name": "linux-host-tests", "configurePreset": "linux-host-tests" },
+        { "name": "windows-msvc-x86-release", "configurePreset": "windows-msvc-x86", "configuration": "Release" },
+        { "name": "windows-msvc-x86-debug", "configurePreset": "windows-msvc-x86", "configuration": "Debug" },
+        { "name": "windows-clangcl-x86-release", "configurePreset": "windows-clangcl-x86", "configuration": "Release" }
+    ],
+    "testPresets": [
+        { "name": "linux-host-tests", "configurePreset": "linux-host-tests", "output": { "outputOnFailure": true } },
+        {
+            "name": "windows-msvc-x86",
+            "configurePreset": "windows-msvc-x86",
+            "configuration": "Debug",
+            "output": { "outputOnFailure": true }
+        }
+    ]
+}

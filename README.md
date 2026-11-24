@@ -26,125 +26,35 @@ Emsal projeler: KenshiLib/RE_Kenshi, Warband Script Extender (WSE).
 Not: Bu oyunun resmi bir native Linux build'i de var (Steam Linux Runtime/scout ile gelir, varsayılan kurulum bu). Windows build'ini (`mb_warband.exe`) almak için compatibility tool Proton Experimental'a zorlanıp oyun yeniden indirilmeli — WarbandLib native Linux build'i değil, Windows build'i hedefliyor.
 
 ## Toolchain
-- **Build**: `i686-w64-mingw32-gcc` (mingw-w64) ile Arch Linux'tan doğrudan cross-compile. Windows makine ya da VM gerekmiyor.
-- **Fallback**: `clang -target i686-pc-windows-msvc -fms-compatibility-version=16.00` (ince ABI uyuşmazlığı çıkarsa).
-- Gerçek MSVC 2010'a ihtiyaç yok: WarbandLib oyunun derlenmiş objeleriyle statik link etmiyor, struct/vtable erişimi RE ile çıkarılan offsetlerle elle yapılıyor — bu compiler-agnostic bir yaklaşım.
-- **Çalıştırma/test**: gerçek Windows exe, Proton Experimental ile aynı Linux makinede. Windows VM günlük döngüde gerekmiyor; sadece nadiren "gerçek Windows'ta da doğrula" sanity-check'i için opsiyonel yedek.
-- **RE araçları**: Ghidra (static analysis), x64dbg (Wine altında, dynamic debugging), frida (runtime tracing/prototipleme).
-- **Test framework**: gtest — oyun çalışmadan test edilebilen saf mantık için (AOB scanner, PE parser). Gerçek hook/offset doğrulaması sadece canlı oyuna karşı yapılabilir.
+- **Linux'tan**: clang-cl + lld-link, hedef `i686-pc-windows-msvc`, Windows SDK/CRT xwin ile (`~/toolchains/xwin-x86`). Preset: `build-release-clangcl-x86`.
+- **Windows'tan**: Visual Studio 2022 (MSVC ya da ClangCL toolset). Preset: `windows-msvc-x86`, `windows-clangcl-x86`.
+- Bağımlılıklar CMake FetchContent ile: ImGui v1.60, MinHook v1.3.4 (testler için GoogleTest, sistemde yoksa).
+- Unit testler native: `linux-host-tests` preset'i.
+- Plugin arayüzü sadece C ABI (`sdk/include/warbandlib/warbandlib.h`), bu yüzden plugin'ler hangi derleyiciyle derlendiğinden bağımsız.
+
+```bash
+cmake --preset build-release-clangcl-x86 && cmake --build --preset build-release-clangcl-x86
+tools/hot-reload.sh     # oyuna enjekte et (protonhax), varsa eski kopyayı kaldır
+tools/unload.sh         # temiz kaldır
+```
+
+Dokümantasyon: `docs/` (Vue + Vite) — `cd docs && npm install && npm run dev`.
 
 ## Klasörler
 - `re/` — RE bulguları: struct/type recovery notları, call graph, Ghidra çıktıları.
 - `signatures/` — AOB pattern verisi + exe fingerprint → offset tablosu.
 - `core/` — memory read/write/protect, PE parsing, versiyon tespiti, AOB scan engine, logging.
-- `runtime/` — `DllMain`, hook motoru (trampoline/detour), somut hook'lar.
-- `sdk/` — Ham hook'ları event'e çeviren katman. Üst katman (dış API entegrasyonu) netleşmeden dokunulmuyor.
+- `runtime/` — `DllMain`, plugin loader, event bus, hook zincirleri, overlay (`host/` platformdan bağımsız, `platform/` Win32).
+- `sdk/` — Public C ABI (`warbandlib.h`) ve x86 layout kilidi (`abi_lock.c`).
 - `tools/` — dumper, signature verifier, `dev-iteration.sh`.
 - `examples/` — ham hook örnekleri, WarbandLib'in kendi doğrulaması için.
-- `docs/` — ABI notları, kararlar, destek politikası.
+- `docs/` — Vue + Vite dokümantasyon sitesi.
 
-## Şu anki milestone
-Injection → module base resolve → tek bilinen fonksiyona AOB scan → trampoline hook kur → tetiklenince log satırı yaz → temiz unhook.
+## Durum
+Runtime 0.1 / ABI 1.0: plugin loader (bağımlılık + sıralama), öncelikli event bus, plugin'ler arası interface'ler, paylaşımlı öncelikli hook zincirleri, güvenli bellek erişimi, ImGui 1.60 overlay (INSERT) ve C menü/çizim API'si.
 
-Açık karar: injection mekanizması henüz belirlenmedi (bağımsız injector mı yazılacak, mevcut bir loader'ın üstüne mi kurulacak).
+Sıradaki: offset'leri repoya koymadan, geliştiricinin kendi exe'sinden yerel üretilen sembol tablosu (bkz. docs → "Game data model").
 
 ## Local iterasyon akışı
 
-Hızlı geliştirme döngüsü için `tools/dev-iteration.sh`:
-
-```bash
-./tools/dev-iteration.sh configure
-./tools/dev-iteration.sh build
-./tools/dev-iteration.sh sync --dry-run
-./tools/dev-iteration.sh launch
-```
-
-Tek komutta configure + build + sync:
-
-```bash
-./tools/dev-iteration.sh loop
-```
-
-Ortam değişkenleri:
-
-```bash
-export WARBANDLIB_MOD_TARGET_DIR="$HOME/.local/share/Steam/steamapps/common/MountBlade Warband/Modules/MyModule"
-export WARBANDLIB_GAME_LAUNCH_CMD="steam -applaunch 48700"
-```
-
-VS Code tasklari:
-
-- `WarbandLib: Configure`
-- `WarbandLib: Build`
-- `WarbandLib: Sync Module`
-- `WarbandLib: Iteration Loop`
-- `WarbandLib: Launch Game`
-
-## Build ve Inject Komutları
-
-Ortam + build + deploy (hangi örneği test edeceğin fark etmez, önce bunlar):
-
-```bash
-export GAME_DIR="$HOME/.local/share/Steam/steamapps/common/MountBlade Warband"
-export WINE_DIR="$HOME/.local/share/Steam/steamapps/common/Proton - Experimental/files/bin"
-export WINEPREFIX="$HOME/.local/share/Steam/steamapps/compatdata/48700/pfx"
-
-cd /home/erano/CppWorkspace/WarbandLib/
-
-cmake -S . -B build-win --toolchain cmake/toolchain-mingw-i686.cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo
-cmake --build build-win -j
-cp build-win/warbandlib_injector.exe build-win/*.dll build-win/mb_warband.ini "$GAME_DIR/"
-
-# oyunu başlat (pencere gelene kadar bekle, sonra devam et)
-steam -applaunch 48700
-```
-
-**Uyarı — aynı anda tek DLL:** `imgui_menu` ve `hp_editor` ikisi de kendi ImGui context'ini ve WndProc hook'unu aynı oyun penceresine kuruyor; ikisini birden inject etmek instabilite/crash'e yol açıyor (doğrulanmadı ama şüpheli, bkz. `re/mb_warband.exe.md` Milestone 2). `warbandlib_runtime.dll` ve `overlay_quad` sadece EndScene'e vtable-hook kuruyor (ImGui/WndProc yok), bunlar birbirleriyle ve tek bir ImGui örneğiyle güvenle birlikte çalışabilir. Aşağıdaki blokları teker teker, ihtiyacına göre çalıştır.
-
-### warbandlib_runtime.dll — ana runtime, EndScene heartbeat log
-```bash
-cd "$GAME_DIR"
-"$WINE_DIR/wine" warbandlib_injector.exe mb_warband.exe warbandlib_runtime.dll
-```
-```bash
-tail -f "$GAME_DIR/WarbandLib.log"
-```
-```bash
-"$WINE_DIR/wine" warbandlib_injector.exe --eject mb_warband.exe warbandlib_runtime.dll
-```
-
-### examples/overlay_quad — F9, ham D3D9 quad çizimi (ImGui yok)
-```bash
-cd "$GAME_DIR"
-"$WINE_DIR/wine" warbandlib_injector.exe mb_warband.exe warbandlib_example_overlay_quad.dll
-```
-```bash
-tail -f "$GAME_DIR/WarbandLibExampleOverlayQuad.log"
-```
-```bash
-"$WINE_DIR/wine" warbandlib_injector.exe --eject mb_warband.exe warbandlib_example_overlay_quad.dll
-```
-
-### examples/imgui_menu — F10, ImGui demo penceresi
-```bash
-cd "$GAME_DIR"
-"$WINE_DIR/wine" warbandlib_injector.exe mb_warband.exe warbandlib_example_imgui_menu.dll
-```
-```bash
-tail -f "$GAME_DIR/WarbandLibExampleImguiMenu.log"
-```
-```bash
-"$WINE_DIR/wine" warbandlib_injector.exe --eject mb_warband.exe warbandlib_example_imgui_menu.dll
-```
-
-### examples/hp_editor — F10 aç/kapat, F11 tara, PgUp/PgDn ±1, Home/End ±10
-```bash
-cd "$GAME_DIR"
-"$WINE_DIR/wine" warbandlib_injector.exe mb_warband.exe warbandlib_example_hp_editor.dll
-```
-```bash
-tail -f "$GAME_DIR/WarbandLibExampleHpEditor.log"
-```
-```bash
-"$WINE_DIR/wine" warbandlib_injector.exe --eject mb_warband.exe warbandlib_example_hp_editor.dll
-```
+`tools/dev-iteration.sh configure|build|test|inject|unload|loop|docs`

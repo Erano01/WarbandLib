@@ -5,10 +5,9 @@
 //   injector.exe <process_name.exe> <path\to\payload.dll>   (inject)
 //   injector.exe --eject <process_name.exe> <dll_name.dll>  (unload)
 //
-// Eject exists so an iterate-rebuild-retest loop doesn't require restarting
-// the target process every time: LoadLibraryA on an already-loaded module
-// path is a no-op (Windows won't re-read the file), so a changed DLL must
-// be ejected before it can be injected again with fresh contents.
+// Eject asks the runtime to unload itself by creating <dll path>.unload and
+// waits for the module to disappear: a remote FreeLibrary would run the
+// shutdown under the loader lock, where plugins cannot be unloaded safely.
 
 #include <windows.h>
 #include <tlhelp32.h>
@@ -41,7 +40,7 @@ DWORD FindProcessId(const std::string& process_name) {
 	return pid;
 }
 
-HMODULE FindRemoteModule(DWORD pid, const std::string& dll_name) {
+HMODULE FindRemoteModule(DWORD pid, const std::string& dll_name, std::string* out_path = nullptr) {
 	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid);
 	if (snapshot == INVALID_HANDLE_VALUE) {
 		return nullptr;
@@ -55,6 +54,9 @@ HMODULE FindRemoteModule(DWORD pid, const std::string& dll_name) {
 		do {
 			if (_stricmp(entry.szModule, dll_name.c_str()) == 0) {
 				found = entry.hModule;
+				if (out_path != nullptr) {
+					*out_path = entry.szExePath;
+				}
 				break;
 			}
 		} while (Module32Next(snapshot, &entry));
@@ -131,42 +133,28 @@ bool InjectDll(DWORD pid, const std::string& dll_path) {
 }
 
 bool EjectDll(DWORD pid, const std::string& dll_name) {
-	HANDLE process = OpenProcess(
-	    PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION |
-	        PROCESS_VM_WRITE | PROCESS_VM_READ,
-	    FALSE, pid);
-	if (process == nullptr) {
-		std::fprintf(stderr, "OpenProcess failed: %lu\n", GetLastError());
-		return false;
-	}
-
-	const HMODULE remote_module = FindRemoteModule(pid, dll_name);
-	if (remote_module == nullptr) {
+	std::string dll_path;
+	if (FindRemoteModule(pid, dll_name, &dll_path) == nullptr) {
 		std::fprintf(stderr, "'%s' is not currently loaded in that process\n", dll_name.c_str());
-		CloseHandle(process);
 		return false;
 	}
 
-	auto free_library = reinterpret_cast<LPTHREAD_START_ROUTINE>(
-	    reinterpret_cast<void*>(GetProcAddress(GetModuleHandleA("kernel32.dll"), "FreeLibrary")));
-	if (free_library == nullptr) {
-		std::fprintf(stderr, "GetProcAddress(FreeLibrary) failed: %lu\n", GetLastError());
-		CloseHandle(process);
+	const std::string flag = dll_path + ".unload";
+	const HANDLE file = CreateFileA(flag.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (file == INVALID_HANDLE_VALUE) {
+		std::fprintf(stderr, "could not create %s: %lu\n", flag.c_str(), GetLastError());
 		return false;
 	}
+	CloseHandle(file);
 
-	DWORD freed = 0;
-	const bool ran = RunRemoteThread(process, free_library, remote_module, &freed);
-	CloseHandle(process);
-
-	if (!ran) {
-		return false;
+	for (int i = 0; i < 80; ++i) {
+		Sleep(250);
+		if (FindRemoteModule(pid, dll_name) == nullptr) {
+			return true;
+		}
 	}
-	if (freed == 0) {
-		std::fprintf(stderr, "Remote FreeLibrary returned FALSE -- DLL failed to unload\n");
-		return false;
-	}
-	return true;
+	std::fprintf(stderr, "'%s' is still loaded after 20 s\n", dll_name.c_str());
+	return false;
 }
 
 } // namespace

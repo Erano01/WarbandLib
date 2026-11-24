@@ -46,3 +46,6 @@ __pycache__/
 
 # Local session context (not for publication)
 /CONTEXT.md
+# Docs site
+/docs/node_modules/
+/docs/dist/
